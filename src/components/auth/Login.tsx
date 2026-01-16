@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -14,7 +14,7 @@ export function Login() {
 
   const handleLogin = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    
+
     setUser({
       id: '1',
       name: 'John Doe',
@@ -22,7 +22,7 @@ export function Login() {
       phone: '+1 234 567 8900',
       city: 'New York',
     });
-    
+
     toast.success('Successfully logged in!');
     navigate('/');
   }, [email, navigate, setUser]);
