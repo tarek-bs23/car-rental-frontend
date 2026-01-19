@@ -1,6 +1,8 @@
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { Button } from '../ui/button';
 import { useNavigate } from 'react-router-dom';
+import React from 'react';
+
 
 export function AppLaunch() {
   const navigate = useNavigate();
@@ -33,13 +35,13 @@ export function AppLaunch() {
 
           {/* CTAs */}
           <div className="space-y-3">
-            <Button 
+            <Button
               onClick={() => navigate('/register')}
               className="w-full h-12"
             >
               Sign Up
             </Button>
-            
+
             <button
               onClick={() => navigate('/login')}
               className="w-full text-blue-600 hover:text-blue-700"

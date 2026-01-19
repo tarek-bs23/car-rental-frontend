@@ -1,5 +1,6 @@
 import { Button } from '../ui/button';
 import { useNavigate } from 'react-router-dom';
+import React from 'react';
 
 export function Welcome() {
   const navigate = useNavigate();
@@ -14,7 +15,6 @@ export function Welcome() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-
           <div className="space-y-3">
             <h1 className="text-gray-900">Welcome Aboard!</h1>
             <p className="text-gray-600">
@@ -23,13 +23,13 @@ export function Welcome() {
           </div>
 
           <div className="space-y-3 pt-4">
-            <Button 
+            <Button
               onClick={() => navigate('/profile-setup')}
               className="w-full h-12"
             >
               Complete Profile
             </Button>
-            
+
             <button
               onClick={() => navigate('/')}
               className="w-full text-gray-600 hover:text-gray-700"

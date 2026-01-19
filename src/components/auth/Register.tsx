@@ -1,16 +1,10 @@
-import { useState, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Checkbox } from '../ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '../ui/select';
 
 const CITIES = ['New York', 'Los Angeles', 'Chicago', 'Miami', 'San Francisco', 'Las Vegas'] as const;
 
@@ -21,6 +15,7 @@ interface FormData {
   phone: string;
   city: string;
 }
+
 
 export function Register() {
   const navigate = useNavigate();
@@ -124,8 +119,8 @@ export function Register() {
             </div>
 
             <div className="flex items-start gap-3">
-              <Checkbox 
-                id="terms" 
+              <Checkbox
+                id="terms"
                 checked={agreedToTerms}
                 onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
               />
