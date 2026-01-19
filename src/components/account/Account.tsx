@@ -17,10 +17,10 @@ import { toast } from 'sonner';
 
 export function Account() {
   const navigate = useNavigate();
-  const { user, setUser } = useApp();
+  const { user, logout } = useApp();
 
   const handleLogout = () => {
-    setUser(null);
+    logout();
     toast.success('Logged out successfully');
     navigate('/launch');
   };

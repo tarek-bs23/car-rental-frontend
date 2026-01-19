@@ -9,14 +9,18 @@ import { apiJson } from '../../lib/api';
 import { endpoints } from '../../lib/endpoints';
 
 interface LoginResponse {
-  token: string;
-  user: {
-    id: string;
-    email: string;
-    firstName?: string;
-    lastName?: string;
-    phoneNumber?: string;
-    city?: { id: string; name: string };
+  statusCode: number;
+  message: string;
+  data: {
+    user: {
+      _id: string;
+      email: string;
+      firstName?: string;
+      lastName?: string;
+      phoneNumber?: string;
+      city?: string;
+    };
+    accessToken: string;
   };
 }
 
@@ -41,18 +45,18 @@ export function Login() {
         skipAuth: true,
       });
 
-      const apiUser = response.user;
+      const apiUser = response.data.user;
       const mappedUser: User = {
-        id: apiUser.id,
+        id: apiUser._id,
         email: apiUser.email,
         name: apiUser.firstName && apiUser.lastName
           ? `${apiUser.firstName} ${apiUser.lastName}`
           : apiUser.email.split('@')[0],
         phone: apiUser.phoneNumber || '',
-        city: apiUser.city?.name || '',
+        city: apiUser.city || '',
       };
 
-      login(response.token, mappedUser);
+      login(response.data.accessToken, mappedUser);
       toast.success('Successfully logged in!');
       navigate('/');
     } catch (error) {
