@@ -42,6 +42,7 @@ export function Register() {
     phoneNumber: '',
     cityId: '',
   });
+  const [selectedCityId, setSelectedCityId] = useState<string | undefined>(undefined);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
   const [isCitiesLoading, setIsCitiesLoading] = useState(true);
@@ -64,8 +65,10 @@ export function Register() {
 
         setCities(response.data || []);
 
-        if (!formData.cityId && response.data && response.data.length > 0) {
-          setFormData(prev => ({ ...prev, cityId: response.data[0].id }));
+        if (!selectedCityId && response.data && response.data.length > 0) {
+          const firstCityId = response.data[0].id;
+          setSelectedCityId(firstCityId);
+          setFormData(prev => ({ ...prev, cityId: firstCityId }));
         }
       } catch (error) {
         if (!isMounted) return;
@@ -83,13 +86,14 @@ export function Register() {
     return () => {
       isMounted = false;
     };
-  }, [formData.cityId]);
+  }, []);
 
   const handleFieldChange = useCallback((field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   }, []);
 
   const handleCityChange = useCallback((value: string) => {
+    setSelectedCityId(value);
     setFormData(prev => ({ ...prev, cityId: value }));
   }, []);
 
@@ -211,7 +215,7 @@ export function Register() {
             <div className="space-y-2">
               <Label htmlFor="city">City</Label>
               <Select
-                value={formData.cityId}
+                value={selectedCityId}
                 onValueChange={handleCityChange}
                 disabled={isCitiesLoading || !!citiesError}
               >
