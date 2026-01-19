@@ -111,6 +111,11 @@ export interface CartItem {
 interface AppContextType {
   user: User | null;
   setUser: (user: User | null) => void;
+  accessToken: string | null;
+  setAccessToken: (token: string | null) => void;
+  isAuthenticated: boolean;
+  login: (token: string, user: User) => void;
+  logout: () => void;
   selectedCity: string;
   setSelectedCity: (city: string) => void;
   bookings: Booking[];
@@ -148,10 +153,13 @@ export const useApp = () => {
 };
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Initialize user from localStorage
   const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('user');
     return savedUser ? JSON.parse(savedUser) : null;
+  });
+
+  const [accessToken, setAccessToken] = useState<string | null>(() => {
+    return localStorage.getItem('accessToken');
   });
 
   const [selectedCity, setSelectedCity] = useState('New York');
@@ -160,6 +168,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     { id: '1', type: 'card', last4: '4242', brand: 'Visa', isDefault: true }
   ]);
 
+  const isAuthenticated = useMemo(() => !!accessToken && !!user, [accessToken, user]);
+
   useEffect(() => {
     if (user) {
       localStorage.setItem('user', JSON.stringify(user));
@@ -167,6 +177,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.removeItem('user');
     }
   }, [user]);
+
+  useEffect(() => {
+    if (accessToken) {
+      localStorage.setItem('accessToken', accessToken);
+    } else {
+      localStorage.removeItem('accessToken');
+    }
+  }, [accessToken]);
+
+  const login = useCallback((token: string, userData: User) => {
+    setAccessToken(token);
+    setUser(userData);
+  }, []);
+
+  const logout = useCallback(() => {
+    setAccessToken(null);
+    setUser(null);
+  }, []);
 
   const vehicles = useMemo(() => mockVehicles, []);
   const drivers = useMemo(() => mockDrivers, []);
@@ -223,6 +251,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       value={{
         user,
         setUser,
+        accessToken,
+        setAccessToken,
+        isAuthenticated,
+        login,
+        logout,
         selectedCity,
         setSelectedCity,
         bookings,

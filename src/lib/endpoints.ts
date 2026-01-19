@@ -3,6 +3,12 @@ const API_VERSION = '/api/v1'
 export const endpoints = {
   auth: {
     registerUser: `${API_VERSION}/auth/user/register`,
+    loginUser: `${API_VERSION}/auth/user/login`,
+    forgotPassword: `${API_VERSION}/auth/user/forgot-password`,
+    verifyOtp: `${API_VERSION}/auth/user/verify-otp`,
+    resetPassword: `${API_VERSION}/auth/user/reset-password`,
+    profile: `${API_VERSION}/auth/user/profile`,
+    logout: `${API_VERSION}/auth/user/logout`,
     publicCities: `${API_VERSION}/auth/public/cities`,
   },
 }
