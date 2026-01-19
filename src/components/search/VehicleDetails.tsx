@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useApp } from '../../contexts/AppContext';
+import { useApp, type Vehicle } from '../../contexts/AppContext';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '../ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { ChevronLeft, Star, Check, Car, Fuel, Users, Calendar, Clock, Shield, Award, AlertCircle, X, ChevronRight, FileText, Cog } from 'lucide-react';
+import { ChevronLeft, Star, Check, Fuel, Users, Calendar, Clock, Shield, AlertCircle, FileText, Cog, Loader2 } from 'lucide-react';
 import { Progress } from '../ui/progress';
 import { Avatar } from '../ui/avatar';
 import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
+import { getVehicleDetails } from '../../lib/vehicleSearch';
 
 interface Review {
   id: string;
@@ -25,29 +26,31 @@ interface Review {
 export function VehicleDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { vehicles, addToCart } = useApp();
+  const { vehicles, addToCart, upsertVehicles } = useApp();
   const [searchParams] = useSearchParams();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [showReviews, setShowReviews] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>(
     (searchParams.get('duration') as 'hourly' | 'daily' | 'weekly' | 'monthly') || 'daily'
   );
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
-  const [includeFuel, setIncludeFuel] = useState(true); // true = fuel included (higher price), false = add fuel charges (lower base price)
+  const [includeFuel, setIncludeFuel] = useState(true);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
-  const vehicle = vehicles.find(v => v.id === id);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [apiVehicle, setApiVehicle] = useState<Vehicle | null>(null);
 
-  // Get dates from URL
+  const contextVehicle = vehicles.find(v => v.id === id);
+  const vehicle = apiVehicle || contextVehicle;
+
   const urlStartDate = searchParams.get('startDate');
   const urlEndDate = searchParams.get('endDate');
   const urlStartTime = searchParams.get('startTime') || '10:00';
   const urlEndTime = searchParams.get('endTime') || '18:00';
 
-  // Initialize dates from URL if available
   useEffect(() => {
     if (urlStartDate) {
       setStartDate(new Date(urlStartDate));
@@ -56,6 +59,30 @@ export function VehicleDetails() {
       setEndDate(new Date(urlEndDate));
     }
   }, [urlStartDate, urlEndDate]);
+
+  useEffect(() => {
+    if (!id || contextVehicle) return;
+
+    let cancelled = false;
+    setIsLoading(true);
+    setError(null);
+
+    getVehicleDetails(id)
+      .then((data) => {
+        if (cancelled) return;
+        setApiVehicle(data);
+        upsertVehicles([data]);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : 'Failed to load vehicle');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [id, contextVehicle, upsertVehicles]);
 
   // Mock reviews data
   const reviews: Review[] = [
@@ -105,10 +132,37 @@ export function VehicleDetails() {
     { stars: 1, count: 1, percentage: 1 },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-12 h-12 text-[#d4af37] animate-spin" />
+        <p className="text-neutral-600">Loading vehicle details...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6">
+        <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center">
+          <AlertCircle className="w-12 h-12 text-red-500" />
+        </div>
+        <h3 className="text-xl font-semibold text-neutral-900">Failed to Load</h3>
+        <p className="text-neutral-600 text-center">{error}</p>
+        <Button onClick={() => navigate(-1)} variant="outline">Go Back</Button>
+      </div>
+    );
+  }
+
   if (!vehicle) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Vehicle not found</p>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6">
+        <div className="w-24 h-24 bg-neutral-100 rounded-full flex items-center justify-center">
+          <AlertCircle className="w-12 h-12 text-neutral-400" />
+        </div>
+        <h3 className="text-xl font-semibold text-neutral-900">Vehicle Not Found</h3>
+        <p className="text-neutral-600 text-center">The vehicle you're looking for doesn't exist.</p>
+        <Button onClick={() => navigate(-1)} variant="outline">Go Back</Button>
       </div>
     );
   }
@@ -274,24 +328,29 @@ export function VehicleDetails() {
         <div className="space-y-3">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-1">{vehicle.name}</h1>
-            <p className="text-lg text-gray-600">{vehicle.category}</p>
+            <p className="text-lg text-gray-600">{vehicle.category}{vehicle.year ? ` • ${vehicle.year}` : ''}</p>
           </div>
           
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setShowReviews(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-yellow-50 to-orange-50 px-4 py-2.5 rounded-xl border border-yellow-200 hover:border-yellow-300 transition-all"
-            >
-              <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-              <span className="font-semibold text-gray-900">{vehicle.rating}</span>
-              <span className="text-gray-600">({vehicle.reviewCount} reviews)</span>
-            </button>
+          <div className="flex items-center gap-4 flex-wrap">
+            {(vehicle.rating > 0 || vehicle.reviewCount > 0) && (
+              <button 
+                onClick={() => setShowReviews(true)}
+                className="flex items-center gap-2 bg-gradient-to-r from-yellow-50 to-orange-50 px-4 py-2.5 rounded-xl border border-yellow-200 hover:border-yellow-300 transition-all"
+              >
+                <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                <span className="font-semibold text-gray-900">{vehicle.rating || 0}</span>
+                <span className="text-gray-600">({vehicle.reviewCount || 0} reviews)</span>
+              </button>
+            )}
             
-            {/* Ownership Badge */}
             <Badge className={vehicle.ownershipType === 'platform' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}>
               {vehicle.ownershipType === 'platform' ? 'Platform Owned' : 'Agent Owned'}
             </Badge>
           </div>
+
+          {vehicle.description && (
+            <p className="text-gray-600 leading-relaxed">{vehicle.description}</p>
+          )}
         </div>
 
         {/* Agent Information Section (for agent-owned vehicles) */}
@@ -338,17 +397,19 @@ export function VehicleDetails() {
         )}
 
         {/* VIN Number Section */}
-        <div className="bg-gradient-to-br from-gray-50 to-neutral-50 rounded-2xl p-5 border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-              <FileText className="w-6 h-6 text-blue-700" />
-            </div>
-            <div className="flex-1">
-              <p className="text-xs text-gray-600 mb-1">Vehicle Identification Number</p>
-              <p className="font-mono font-semibold text-gray-900 tracking-wide">{vehicle.vin}</p>
+        {vehicle.vin && (
+          <div className="bg-gradient-to-br from-gray-50 to-neutral-50 rounded-2xl p-5 border border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <FileText className="w-6 h-6 text-blue-700" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-gray-600 mb-1">Vehicle Identification Number</p>
+                <p className="font-mono font-semibold text-gray-900 tracking-wide">{vehicle.vin}</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Tabs for Content Organization */}
         <Tabs defaultValue="overview" className="w-full">
@@ -480,17 +541,21 @@ export function VehicleDetails() {
           <TabsContent value="features" className="space-y-4">
             <div className="space-y-3">
               <h3 className="font-semibold text-gray-900">Premium Features</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {vehicle.features.map((feature, index) => (
-                  <div 
-                    key={index}
-                    className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200"
-                  >
-                    <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                    <span className="text-sm text-gray-700">{feature}</span>
-                  </div>
-                ))}
-              </div>
+              {vehicle.features && vehicle.features.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {vehicle.features.map((feature, index) => (
+                    <div 
+                      key={index}
+                      className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200"
+                    >
+                      <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                      <span className="text-sm text-gray-700">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No additional features listed.</p>
+              )}
             </div>
           </TabsContent>
 

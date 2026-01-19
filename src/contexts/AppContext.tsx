@@ -33,6 +33,11 @@ export interface Vehicle {
     coverageArea: string[];
     memberSince: string;
   };
+  year?: number;
+  vehicleType?: string;
+  luxuryClass?: string;
+  description?: string;
+  isAvailable?: boolean;
 }
 
 export interface Driver {
@@ -122,6 +127,7 @@ interface AppContextType {
   addBooking: (booking: Booking) => void;
   cancelBooking: (bookingId: string, refundAmount: number) => void;
   vehicles: Vehicle[];
+  upsertVehicles: (items: Vehicle[]) => void;
   drivers: Driver[];
   bodyguards: Bodyguard[];
   savedPaymentMethods: PaymentMethod[];
@@ -196,9 +202,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setUser(null);
   }, []);
 
-  const vehicles = useMemo(() => mockVehicles, []);
+  const [vehicles, setVehicles] = useState<Vehicle[]>(mockVehicles);
   const drivers = useMemo(() => mockDrivers, []);
   const bodyguards = useMemo(() => mockBodyguards, []);
+
+  const upsertVehicles = useCallback((items: Vehicle[]) => {
+    setVehicles(prev => {
+      const vehicleMap = new Map(prev.map(v => [v.id, v]));
+      items.forEach(item => vehicleMap.set(item.id, item));
+      return Array.from(vehicleMap.values());
+    });
+  }, []);
 
   const addBooking = useCallback((booking: Booking) => {
     setBookings(prev => [...prev, booking]);
@@ -262,6 +276,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addBooking,
         cancelBooking,
         vehicles,
+        upsertVehicles,
         drivers,
         bodyguards,
         savedPaymentMethods,

@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../../contexts/AppContext';
 import { TopBar } from '../layout/TopBar';
 import { BottomNav } from '../layout/BottomNav';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { Star, ChevronRight, Shield, Users, Zap, Calendar, Clock, AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { Star, ChevronRight, Users, Zap, Calendar, Clock, AlertCircle, CheckCircle2, X, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { format, addDays, addHours } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { Button } from '../ui/button';
 import { Calendar as CalendarComponent } from '../ui/calendar';
 import {
@@ -15,14 +15,18 @@ import {
   SheetHeader,
   SheetTitle,
 } from '../ui/sheet';
+import React from 'react';
+import { searchVehicles, PricingType, VehicleType } from '../../lib/vehicleSearch';
+import type { Vehicle } from '../../contexts/AppContext';
+import { toast } from 'sonner';
 
 export function VehicleSearch() {
   const navigate = useNavigate();
-  const { vehicles, selectedCity } = useApp();
+  const { selectedCity, upsertVehicles } = useApp();
   const [searchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('daily');
-  
+
   // Date/Time state
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
@@ -30,12 +34,28 @@ export function VehicleSearch() {
   const [endTime, setEndTime] = useState<string>('18:00');
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  // API state
+  const [results, setResults] = useState<Vehicle[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [datesApplied, setDatesApplied] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const lastQueryRef = useRef<string>('');
+
   const categories = [
     { id: 'all', label: 'All' },
-    { id: 'Sedan', label: 'Sedan' },
-    { id: 'SUV', label: 'SUV' },
-    { id: 'Sports', label: 'Sports' },
-    { id: 'Luxury', label: 'Luxury' },
+    { id: VehicleType.SEDAN, label: 'Sedan' },
+    { id: VehicleType.SUV, label: 'SUV' },
+    { id: VehicleType.LUXURY, label: 'Luxury' },
+    { id: VehicleType.ELECTRIC, label: 'Electric' },
+    { id: VehicleType.CONVERTIBLE, label: 'Convertible' },
+    { id: VehicleType.HATCHBACK, label: 'Hatchback' },
+    { id: VehicleType.VAN, label: 'Van' },
+    { id: VehicleType.PICKUP, label: 'Pickup' },
   ];
 
   const durations = [
@@ -45,33 +65,15 @@ export function VehicleSearch() {
     { id: 'monthly', label: 'Monthly', icon: Calendar, description: '30 days' },
   ];
 
-  // Mock availability checker - simulates checking if vehicle is available
-  const checkVehicleAvailability = (vehicleId: string, start: Date, end: Date) => {
-    // Simulate some vehicles being unavailable for certain dates
-    const unavailableVehicles = ['1', '3']; // Mock: vehicle 1 and 3 have conflicts
-    const hasConflict = unavailableVehicles.includes(vehicleId);
-    
-    if (hasConflict) {
-      // Mock conflict on a specific day
-      const conflictDay = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24) / 2);
-      return {
-        available: false,
-        conflictDate: addDays(start, conflictDay)
-      };
-    }
-    
-    return { available: true, conflictDate: null };
-  };
-
   // Get booking period based on duration type
-  const getBookingPeriod = () => {
+  const getBookingPeriod = useCallback(() => {
     if (!startDate) return null;
-    
+
     switch (selectedDuration) {
       case 'hourly':
         return {
           start: startDate,
-          end: startDate // Same day for hourly
+          end: startDate
         };
       case 'daily':
         return {
@@ -89,30 +91,136 @@ export function VehicleSearch() {
           end: addDays(startDate, 30)
         };
     }
-  };
+  }, [startDate, endDate, selectedDuration]);
 
-  const filteredVehicles = vehicles.filter(v => {
-    if (v.city !== selectedCity) return false;
-    if (selectedCategory !== 'all' && v.category !== selectedCategory) return false;
-    return true;
-  });
-
-  // Sort vehicles by availability
-  const sortedVehicles = startDate ? [...filteredVehicles].sort((a, b) => {
+  // Build ISO dates for API
+  const buildSearchDates = useCallback(() => {
     const period = getBookingPeriod();
-    if (!period) return 0;
-    
-    const aAvailability = checkVehicleAvailability(a.id, period.start, period.end);
-    const bAvailability = checkVehicleAvailability(b.id, period.start, period.end);
-    
-    // Available vehicles first
-    if (aAvailability.available && !bAvailability.available) return -1;
-    if (!aAvailability.available && bAvailability.available) return 1;
-    return 0;
-  }) : filteredVehicles;
+    if (!period) return null;
+
+    let startISO: string;
+    let endISO: string;
+
+    if (selectedDuration === 'hourly') {
+      const [startHour, startMin] = startTime.split(':').map(Number);
+      const [endHour, endMin] = endTime.split(':').map(Number);
+      const start = new Date(period.start);
+      start.setHours(startHour, startMin, 0, 0);
+      const end = new Date(period.start);
+      end.setHours(endHour, endMin, 0, 0);
+      startISO = start.toISOString();
+      endISO = end.toISOString();
+    } else {
+      startISO = period.start.toISOString();
+      endISO = period.end.toISOString();
+    }
+
+    return { startISO, endISO };
+  }, [getBookingPeriod, selectedDuration, startTime, endTime]);
+
+  // Map duration to pricing type
+  const getPricingType = useCallback(() => {
+    switch (selectedDuration) {
+      case 'hourly': return PricingType.HOURLY;
+      case 'daily': return PricingType.DAILY;
+      case 'weekly': return PricingType.WEEKLY;
+      case 'monthly': return PricingType.MONTHLY;
+    }
+  }, [selectedDuration]);
+
+  // Fetch vehicles from API
+  const fetchVehicles = useCallback(async (pageNum: number, reset: boolean = false) => {
+    const dates = buildSearchDates();
+    if (!selectedCity || !dates) return;
+
+    const queryKey = `${selectedCity}-${dates.startISO}-${dates.endISO}-${selectedDuration}-${selectedCategory}-${pageNum}`;
+
+    if (!reset && queryKey === lastQueryRef.current) return;
+
+    if (reset) {
+      setIsLoading(true);
+      setError(null);
+    } else {
+      setIsLoadingMore(true);
+    }
+
+    try {
+      const result = await searchVehicles({
+        city: selectedCity,
+        startDate: dates.startISO,
+        endDate: dates.endISO,
+        pricingType: getPricingType(),
+        vehicleType: selectedCategory !== 'all' ? selectedCategory as any : undefined,
+        page: pageNum,
+        limit: 10,
+      });
+
+      lastQueryRef.current = queryKey;
+
+      if (reset) {
+        setResults(result.vehicles);
+      } else {
+        setResults(prev => [...prev, ...result.vehicles]);
+      }
+
+      upsertVehicles(result.vehicles);
+      setHasMore(result.hasMore);
+      setTotal(result.total);
+      setPage(pageNum);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load vehicles';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+    }
+  }, [selectedCity, buildSearchDates, selectedDuration, selectedCategory, getPricingType, upsertVehicles]);
+
+  // Handler to apply dates and fetch vehicles
+  const handleApplyDates = useCallback(() => {
+    if (!startDate || (selectedDuration === 'daily' && !endDate)) return;
+
+    setShowDatePicker(false);
+    setDatesApplied(true);
+    setResults([]);
+    setPage(1);
+    setHasMore(false);
+    setError(null);
+    lastQueryRef.current = '';
+
+    // Small delay to ensure state updates before API call
+    setTimeout(() => {
+      fetchVehicles(1, true);
+    }, 100);
+  }, [startDate, endDate, selectedDuration, fetchVehicles]);
+
+  // Fetch vehicles when category changes, but only if dates are already applied
+  useEffect(() => {
+    if (datesApplied && startDate && selectedCity) {
+      fetchVehicles(1, true);
+    }
+  }, [selectedCategory, datesApplied, startDate, selectedCity, fetchVehicles]);
+
+  // Intersection observer for infinite scroll
+  useEffect(() => {
+    if (!sentinelRef.current || !hasMore || isLoadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          fetchVehicles(page + 1, false);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, page, fetchVehicles]);
 
   // Calculate price based on selected duration
-  const getPrice = (vehicle: typeof vehicles[0]) => {
+  const getPrice = (vehicle: Vehicle) => {
     switch (selectedDuration) {
       case 'hourly':
         return { amount: vehicle.pricePerHour, unit: '/hr' };
@@ -130,19 +238,24 @@ export function VehicleSearch() {
   // Handle duration change
   const handleDurationChange = (newDuration: 'hourly' | 'daily' | 'weekly' | 'monthly') => {
     setSelectedDuration(newDuration);
-    // Reset dates when changing duration
     setStartDate(undefined);
     setEndDate(undefined);
+    setDatesApplied(false);
+    setResults([]);
+    setPage(1);
+    setHasMore(false);
+    setError(null);
+    lastQueryRef.current = '';
     setShowDatePicker(false);
   };
 
   // Format booking period for display
   const formatBookingPeriod = () => {
     if (!startDate) return 'Select dates';
-    
+
     const period = getBookingPeriod();
     if (!period) return 'Select dates';
-    
+
     if (selectedDuration === 'hourly') {
       return `${format(startDate, 'MMM d')} • ${startTime} - ${endTime}`;
     } else if (selectedDuration === 'daily') {
@@ -162,7 +275,7 @@ export function VehicleSearch() {
   return (
     <div className="min-h-screen bg-white pb-20">
       <TopBar />
-      
+
       <div className="pt-14">
         {/* Header */}
         <div className="px-6 py-6 border-b border-neutral-100">
@@ -190,23 +303,19 @@ export function VehicleSearch() {
                     <button
                       key={duration.id}
                       onClick={() => handleDurationChange(duration.id as any)}
-                      className={`p-3 rounded-xl border-2 transition-all ${
-                        isSelected
-                          ? 'border-[#d4af37] bg-gradient-to-br from-[#d4af37]/5 to-[#b8941f]/5 shadow-md'
-                          : 'border-neutral-200 bg-white hover:border-neutral-300 hover:shadow-sm'
-                      }`}
+                      className={`p-3 rounded-xl border-2 transition-all ${isSelected
+                        ? 'border-[#d4af37] bg-gradient-to-br from-[#d4af37]/5 to-[#b8941f]/5 shadow-md'
+                        : 'border-neutral-200 bg-white hover:border-neutral-300 hover:shadow-sm'
+                        }`}
                     >
-                      <Icon className={`w-5 h-5 mb-1.5 mx-auto ${
-                        isSelected ? 'text-[#d4af37]' : 'text-neutral-500'
-                      }`} />
-                      <p className={`text-xs font-semibold mb-0.5 ${
-                        isSelected ? 'text-neutral-900' : 'text-neutral-700'
-                      }`}>
+                      <Icon className={`w-5 h-5 mb-1.5 mx-auto ${isSelected ? 'text-[#d4af37]' : 'text-neutral-500'
+                        }`} />
+                      <p className={`text-xs font-semibold mb-0.5 ${isSelected ? 'text-neutral-900' : 'text-neutral-700'
+                        }`}>
                         {duration.label}
                       </p>
-                      <p className={`text-[10px] ${
-                        isSelected ? 'text-neutral-600' : 'text-neutral-500'
-                      }`}>
+                      <p className={`text-[10px] ${isSelected ? 'text-neutral-600' : 'text-neutral-500'
+                        }`}>
                         {duration.description}
                       </p>
                     </button>
@@ -217,20 +326,17 @@ export function VehicleSearch() {
               {/* Date Selection Button */}
               <button
                 onClick={() => setShowDatePicker(true)}
-                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                  hasSelectedDates
-                    ? 'border-[#d4af37] bg-gradient-to-br from-[#d4af37]/5 to-[#b8941f]/5'
-                    : 'border-neutral-300 bg-white hover:border-[#d4af37] hover:shadow-md'
-                }`}
+                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${hasSelectedDates
+                  ? 'border-[#d4af37] bg-gradient-to-br from-[#d4af37]/5 to-[#b8941f]/5'
+                  : 'border-neutral-300 bg-white hover:border-[#d4af37] hover:shadow-md'
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                      hasSelectedDates ? 'bg-[#d4af37]' : 'bg-neutral-100'
-                    }`}>
-                      <Calendar className={`w-6 h-6 ${
-                        hasSelectedDates ? 'text-white' : 'text-neutral-500'
-                      }`} />
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${hasSelectedDates ? 'bg-[#d4af37]' : 'bg-neutral-100'
+                      }`}>
+                      <Calendar className={`w-6 h-6 ${hasSelectedDates ? 'text-white' : 'text-neutral-500'
+                        }`} />
                     </div>
                     <div>
                       <p className="text-xs text-neutral-600 font-medium mb-0.5">
@@ -239,9 +345,8 @@ export function VehicleSearch() {
                         {selectedDuration === 'weekly' && 'Select Start Date (7 days)'}
                         {selectedDuration === 'monthly' && 'Select Start Date (30 days)'}
                       </p>
-                      <p className={`font-semibold ${
-                        hasSelectedDates ? 'text-neutral-900' : 'text-neutral-500'
-                      }`}>
+                      <p className={`font-semibold ${hasSelectedDates ? 'text-neutral-900' : 'text-neutral-500'
+                        }`}>
                         {formatBookingPeriod()}
                       </p>
                     </div>
@@ -256,6 +361,9 @@ export function VehicleSearch() {
                   onClick={() => {
                     setStartDate(undefined);
                     setEndDate(undefined);
+                    setDatesApplied(false);
+                    setResults([]);
+                    setError(null);
                   }}
                   className="mt-2 text-sm text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
                 >
@@ -276,11 +384,10 @@ export function VehicleSearch() {
                   <button
                     key={category.id}
                     onClick={() => setSelectedCategory(category.id)}
-                    className={`px-5 py-2.5 rounded-full whitespace-nowrap transition-all font-medium ${
-                      selectedCategory === category.id
-                        ? 'bg-neutral-900 text-white shadow-lg'
-                        : 'bg-neutral-50 text-neutral-600 hover:bg-neutral-100'
-                    }`}
+                    className={`px-5 py-2.5 rounded-full whitespace-nowrap transition-all font-medium ${selectedCategory === category.id
+                      ? 'bg-neutral-900 text-white shadow-lg'
+                      : 'bg-neutral-50 text-neutral-600 hover:bg-neutral-100'
+                      }`}
                   >
                     {category.label}
                   </button>
@@ -294,7 +401,6 @@ export function VehicleSearch() {
         <div className="px-6 py-6">
           <div className="max-w-2xl mx-auto">
             {!hasSelectedDates ? (
-              // Empty state - no dates selected
               <div className="text-center py-16">
                 <div className="w-24 h-24 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-6">
                   <Calendar className="w-12 h-12 text-neutral-400" />
@@ -303,71 +409,81 @@ export function VehicleSearch() {
                   Select Your Rental Period
                 </h3>
                 <p className="text-neutral-600 mb-6 max-w-md mx-auto">
-                  Choose your rental duration and dates above to see available vehicles in {selectedCity}
+                  Choose your rental duration and dates above to see available vehicles
+                </p>
+              </div>
+            ) : isLoading ? (
+              <div className="text-center py-16">
+                <Loader2 className="w-12 h-12 text-[#d4af37] animate-spin mx-auto mb-4" />
+                <p className="text-neutral-600">Loading vehicles...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-16">
+                <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <AlertCircle className="w-12 h-12 text-red-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-neutral-900 mb-2">Failed to Load</h3>
+                <p className="text-neutral-600 mb-4">{error}</p>
+                <Button onClick={() => fetchVehicles(1, true)} variant="outline">
+                  Try Again
+                </Button>
+              </div>
+            ) : results.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-24 h-24 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Calendar className="w-12 h-12 text-neutral-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-neutral-900 mb-2">No Vehicles Found</h3>
+                <p className="text-neutral-600 mb-6 max-w-md mx-auto">
+                  Try adjusting your dates or filters to find available vehicles.
                 </p>
               </div>
             ) : (
-              // Show vehicles with availability
               <>
                 <div className="mb-4 flex items-center justify-between">
                   <p className="text-sm text-neutral-600">
-                    <span className="font-semibold text-neutral-900">{sortedVehicles.length}</span> vehicles found
+                    <span className="font-semibold text-neutral-900">{total}</span> vehicles found
                   </p>
-                  {(() => {
-                    const period = getBookingPeriod();
-                    if (!period) return null;
-                    const availableCount = sortedVehicles.filter(v => 
-                      checkVehicleAvailability(v.id, period.start, period.end).available
-                    ).length;
-                    return (
-                      <p className="text-sm">
-                        <span className="font-semibold text-green-600">{availableCount} available</span>
-                        {availableCount < sortedVehicles.length && (
-                          <span className="text-neutral-500"> • {sortedVehicles.length - availableCount} unavailable</span>
-                        )}
-                      </p>
-                    );
-                  })()}
+                  <p className="text-sm">
+                    <span className="font-semibold text-green-600">
+                      {results.filter(v => v.isAvailable !== false).length} available
+                    </span>
+                  </p>
                 </div>
-                
+
                 <div className="space-y-4">
-                  {sortedVehicles.map((vehicle, index) => {
+                  {results.map((vehicle, index) => {
                     const price = getPrice(vehicle);
-                    const period = getBookingPeriod();
-                    const availability = period ? checkVehicleAvailability(vehicle.id, period.start, period.end) : { available: true, conflictDate: null };
-                    
+                    const isAvailable = vehicle.isAvailable !== false;
+
                     return (
                       <motion.button
                         key={vehicle.id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        transition={{ duration: 0.3, delay: Math.min(index, 5) * 0.05 }}
                         onClick={() => {
-                          if (availability.available) {
+                          if (isAvailable) {
                             navigate(`/vehicle/${vehicle.id}?duration=${selectedDuration}&startDate=${startDate?.toISOString()}&endDate=${endDate?.toISOString() || startDate?.toISOString()}&startTime=${startTime}&endTime=${endTime}`);
                           }
                         }}
                         className="w-full group"
-                        disabled={!availability.available}
+                        disabled={!isAvailable}
                       >
-                        <div className={`bg-white border-2 rounded-2xl overflow-hidden transition-all duration-300 ${
-                          availability.available
-                            ? 'border-neutral-200 hover:shadow-xl hover:border-neutral-300'
-                            : 'border-red-200 opacity-75'
-                        }`}>
-                          {/* Image Section */}
+                        <div className={`bg-white border-2 rounded-2xl overflow-hidden transition-all duration-300 ${isAvailable
+                          ? 'border-neutral-200 hover:shadow-xl hover:border-neutral-300'
+                          : 'border-red-200 opacity-75'
+                          }`}>
                           <div className="relative aspect-[16/10] overflow-hidden bg-neutral-100">
                             <ImageWithFallback
                               src={vehicle.image}
                               alt={vehicle.name}
-                              className={`w-full h-full object-cover transition-transform duration-500 ${
-                                availability.available ? 'group-hover:scale-105' : 'grayscale'
-                              }`}
+                              className={`w-full h-full object-cover transition-transform duration-500 ${isAvailable ? 'group-hover:scale-105' : 'grayscale'
+                                }`}
                             />
-                            
-                            {/* Availability Badge - Top Priority */}
+
                             <div className="absolute top-3 left-3">
-                              {availability.available ? (
+                              {isAvailable ? (
                                 <div className="flex items-center gap-1.5 bg-green-500 text-white px-3 py-2 rounded-full shadow-lg">
                                   <CheckCircle2 className="w-4 h-4" />
                                   <span className="text-xs font-bold">Available</span>
@@ -380,56 +496,58 @@ export function VehicleSearch() {
                               )}
                             </div>
 
-                            {/* Category Badge */}
                             <div className="absolute top-3 right-3">
                               <span className="bg-neutral-900/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-medium">
                                 {vehicle.category}
                               </span>
                             </div>
 
-                            {/* Quick Stats */}
                             <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2">
-                              <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-sm px-2.5 py-1.5 rounded-full">
-                                <Star className="w-3.5 h-3.5 fill-[#d4af37] text-[#d4af37]" />
-                                <span className="text-xs font-semibold text-neutral-900">{vehicle.rating}</span>
-                              </div>
+                              {vehicle.rating > 0 && (
+                                <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-sm px-2.5 py-1.5 rounded-full">
+                                  <Star className="w-3.5 h-3.5 fill-[#d4af37] text-[#d4af37]" />
+                                  <span className="text-xs font-semibold text-neutral-900">{vehicle.rating}</span>
+                                </div>
+                              )}
                               <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-sm px-2.5 py-1.5 rounded-full">
                                 <Users className="w-3.5 h-3.5 text-neutral-600" />
                                 <span className="text-xs font-medium text-neutral-900">{vehicle.seats}</span>
                               </div>
-                              {vehicle.fuelType === 'Electric' && (
+                              {vehicle.fuelType === 'ELECTRIC' && (
                                 <div className="flex items-center gap-1.5 bg-green-500/90 backdrop-blur-sm px-2.5 py-1.5 rounded-full">
                                   <Zap className="w-3.5 h-3.5 text-white fill-white" />
                                   <span className="text-xs font-medium text-white">Electric</span>
                                 </div>
                               )}
+                              {vehicle.year && (
+                                <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-sm px-2.5 py-1.5 rounded-full">
+                                  <span className="text-xs font-medium text-neutral-900">{vehicle.year}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
 
-                          {/* Content Section */}
                           <div className="p-5">
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
-                                <h3 className={`font-semibold mb-1 text-lg transition-colors ${
-                                  availability.available
-                                    ? 'text-neutral-900 group-hover:text-[#b8941f]'
-                                    : 'text-neutral-600'
-                                }`}>
+                                <h3 className={`font-semibold mb-1 text-lg transition-colors ${isAvailable
+                                  ? 'text-neutral-900 group-hover:text-[#b8941f]'
+                                  : 'text-neutral-600'
+                                  }`}>
                                   {vehicle.name}
                                 </h3>
                                 <p className="text-sm text-neutral-500">{vehicle.transmission} • {vehicle.fuelType}</p>
                               </div>
-                              {availability.available && (
+                              {isAvailable && (
                                 <ChevronRight className="w-5 h-5 text-neutral-400 group-hover:text-neutral-900 group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" />
                               )}
                             </div>
 
-                            {/* Conflict Message or Pricing */}
-                            {!availability.available && availability.conflictDate ? (
+                            {!isAvailable ? (
                               <div className="pt-4 border-t border-red-100">
                                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                                   <p className="text-xs font-semibold text-red-800 mb-1">
-                                    Already booked on {format(availability.conflictDate, 'MMM d, yyyy')}
+                                    Not available for selected dates
                                   </p>
                                   <p className="text-xs text-red-700">
                                     Try selecting different dates
@@ -445,9 +563,11 @@ export function VehicleSearch() {
                                     <span className="text-sm text-neutral-500">{price.unit}</span>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-1.5 text-neutral-600">
-                                  <span className="text-xs">{vehicle.reviewCount} reviews</span>
-                                </div>
+                                {vehicle.reviewCount > 0 && (
+                                  <div className="flex items-center gap-1.5 text-neutral-600">
+                                    <span className="text-xs">{vehicle.reviewCount} reviews</span>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -456,6 +576,19 @@ export function VehicleSearch() {
                     );
                   })}
                 </div>
+
+                {/* Infinite scroll sentinel */}
+                <div ref={sentinelRef} className="h-10 flex items-center justify-center mt-4">
+                  {isLoadingMore && (
+                    <Loader2 className="w-6 h-6 text-[#d4af37] animate-spin" />
+                  )}
+                </div>
+
+                {!hasMore && results.length > 0 && (
+                  <p className="text-center text-sm text-neutral-500 mt-4">
+                    You've seen all {total} vehicles
+                  </p>
+                )}
               </>
             )}
           </div>
@@ -547,7 +680,7 @@ export function VehicleSearch() {
             )}
 
             <Button
-              onClick={() => setShowDatePicker(false)}
+              onClick={handleApplyDates}
               className="w-full h-12"
               disabled={!startDate || (selectedDuration === 'daily' && !endDate)}
             >
