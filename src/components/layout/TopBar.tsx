@@ -8,35 +8,105 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
+import React, { useState, useEffect } from 'react';
+import { apiJson } from '../../lib/api';
+import { endpoints } from '../../lib/endpoints';
 
-const cities = ['New York', 'Los Angeles', 'Chicago', 'Miami', 'San Francisco', 'Las Vegas'];
+interface City {
+  id: string;
+  name: string;
+}
+
+interface CitiesResponse {
+  statusCode: number;
+  message: string;
+  data: City[];
+}
 
 export function TopBar() {
-  const { selectedCity, setSelectedCity, cart } = useApp();
+  const { selectedCity, setSelectedCity, cart, user } = useApp();
   const navigate = useNavigate();
+  const [cities, setCities] = useState<City[]>([]);
+  const [isCitiesLoading, setIsCitiesLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCities() {
+      setIsCitiesLoading(true);
+
+      try {
+        const response = await apiJson<CitiesResponse>({
+          path: endpoints.auth.publicCities,
+          skipAuth: true,
+        });
+
+        if (!isMounted) return;
+
+        setCities(response.data || []);
+      } catch (error) {
+        if (!isMounted) return;
+        console.error('Failed to load cities:', error);
+      } finally {
+        if (!isMounted) return;
+        setIsCitiesLoading(false);
+      }
+    }
+
+    loadCities();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (cities.length === 0 || isCitiesLoading) return;
+
+    const currentCity = cities.find(city => city.id === selectedCity);
+    if (currentCity) return;
+
+    if (user?.city) {
+      const userCityExists = cities.find(city => city.id === user.city);
+      if (userCityExists) {
+        setSelectedCity(user.city);
+        return;
+      }
+    }
+
+    const cityByName = cities.find(city => city.name === selectedCity);
+    const defaultCity = cityByName || cities[0];
+    if (defaultCity) {
+      setSelectedCity(defaultCity.id);
+    }
+  }, [cities, isCitiesLoading, user?.city, selectedCity, setSelectedCity]);
 
   return (
     <header className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-40">
       <div className="flex items-center justify-between h-14 px-4 max-w-md mx-auto">
         <div className="flex items-center gap-2 flex-1">
           <MapPin className="w-5 h-5 text-blue-600" />
-          <Select value={selectedCity} onValueChange={setSelectedCity}>
+          <Select value={selectedCity} onValueChange={(cityId) => setSelectedCity(cityId)}>
             <SelectTrigger className="border-0 shadow-none p-0 h-auto focus:ring-0">
-              <SelectValue />
+              <SelectValue placeholder="Select city" />
             </SelectTrigger>
             <SelectContent>
-              {cities.map((city) => (
-                <SelectItem key={city} value={city}>
-                  {city}
-                </SelectItem>
-              ))}
+              {isCitiesLoading ? (
+                <SelectItem value="loading" disabled>Loading cities...</SelectItem>
+              ) : (
+                cities.map((city) => (
+                  <SelectItem key={city.id} value={city.id}>
+                    {city.name}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>
-        
+
         <div className="flex items-center gap-1">
           {/* Cart Icon */}
-          <button 
+          <button
             onClick={() => navigate('/booking/cart')}
             className="p-2 hover:bg-gray-100 rounded-full relative"
           >
@@ -47,7 +117,7 @@ export function TopBar() {
               </span>
             )}
           </button>
-          
+
           {/* Notifications */}
           <button className="p-2 hover:bg-gray-100 rounded-full relative">
             <Bell className="w-5 h-5 text-gray-700" />

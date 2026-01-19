@@ -3,6 +3,7 @@ import { TopBar } from '../layout/TopBar';
 import { BottomNav } from '../layout/BottomNav';
 import { Car, UserCircle, Shield, ChevronRight, Star, Award, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
+import React from 'react';
 
 export function Services() {
   const navigate = useNavigate();
@@ -37,14 +38,15 @@ export function Services() {
     }
   ];
 
+
   return (
     <div className="min-h-screen bg-white pb-20">
       <TopBar />
-      
+
       <div className="pt-14">
         {/* Premium Hero Section */}
         <div className="px-6 py-8">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -87,12 +89,12 @@ export function Services() {
                         </span>
                       </div>
                     )}
-                    
+
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center group-hover:bg-white/20 transition-all">
                         <Icon className="w-7 h-7 text-white" />
                       </div>
-                      
+
                       <div className="flex-1 text-left">
                         <h2 className="text-xl font-semibold text-white mb-1">
                           {service.title}
@@ -101,7 +103,7 @@ export function Services() {
                           {service.description}
                         </p>
                       </div>
-                      
+
                       <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white group-hover:translate-x-1 transition-all" />
                     </div>
                   </div>
@@ -115,7 +117,7 @@ export function Services() {
         <div className="px-6 pb-6">
           <div className="max-w-2xl mx-auto">
             <div className="grid grid-cols-3 gap-3">
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
@@ -127,8 +129,8 @@ export function Services() {
                 <p className="text-2xl font-bold text-neutral-900 mb-1">4.9</p>
                 <p className="text-xs text-neutral-600">Rating</p>
               </motion.div>
-              
-              <motion.div 
+
+              <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.5 }}
@@ -140,8 +142,8 @@ export function Services() {
                 <p className="text-2xl font-bold text-neutral-900 mb-1">50k+</p>
                 <p className="text-xs text-neutral-600">Bookings</p>
               </motion.div>
-              
-              <motion.div 
+
+              <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.6 }}
@@ -159,7 +161,7 @@ export function Services() {
 
         {/* Premium Features Banner */}
         <div className="px-6">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.7 }}
