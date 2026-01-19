@@ -1,4 +1,35 @@
-**Add your own guidelines here**
+**Cursor Rules for Car Rental Frontend**
+
+### General
+
+- Keep responses concise and to the point.
+- Avoid speculative code or APIs; prefer patterns and endpoints documented in `docs/api-technical-reference.md`.
+- If feature requirements are ambiguous, ask short clarifying questions before making large or irreversible changes.
+
+### Code style
+
+- Use TypeScript and React functional components with hooks.
+- Keep components focused; extract reusable pieces into separate files when they grow too large.
+- Use clear, descriptive names and keep inline comments to a minimum; code should be mostly self-explanatory.
+
+### UI / UX
+
+- Reuse existing global styles from `src/index.css` before introducing new patterns.
+- Ensure layouts are responsive; prefer flexbox and CSS grid over absolute positioning.
+- Keep forms and flows simple and intuitive, with clear primary actions.
+
+### Auth & API
+
+- Use shared API utilities if they exist instead of scattering `fetch`/`axios` logic across components.
+- Follow request/response contracts from `docs/api-technical-reference.md` when calling backend endpoints.
+- Always handle loading, empty, and error states for network calls.
+
+### Quality
+
+- Avoid introducing new `any` types unless strictly necessary.
+- Fix linter and TypeScript errors introduced by new changes.
+- Prefer small, focused changes that are easy to review and test.
+
 <!--
 
 System Guidelines
