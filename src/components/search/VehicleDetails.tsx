@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp, type Vehicle } from '../../contexts/AppContext';
 import { Button } from '../ui/button';
@@ -12,6 +12,7 @@ import { Avatar } from '../ui/avatar';
 import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { getVehicleDetails } from '../../lib/vehicleSearch';
+import { capitalizeFirstLetter } from '../../lib/utils';
 
 interface Review {
   id: string;
@@ -132,6 +133,7 @@ export function VehicleDetails() {
     { stars: 1, count: 1, percentage: 1 },
   ];
 
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
@@ -197,7 +199,7 @@ export function VehicleDetails() {
     const allExterior = vehicle.imageCategories.exterior;
     const allInterior = vehicle.imageCategories.interior;
     const allRegistration = vehicle.imageCategories.registration;
-    
+
     if (allExterior.includes(vehicle.images[index])) return 'Exterior';
     if (allInterior.includes(vehicle.images[index])) return 'Interior';
     if (allRegistration.includes(vehicle.images[index])) return 'Registration';
@@ -215,7 +217,7 @@ export function VehicleDetails() {
 
   const getPrice = () => {
     let basePrice = 0;
-    
+
     if (selectedDuration === 'hourly') {
       return vehicle.pricePerHour; // Hourly doesn't have fuel option
     } else if (selectedDuration === 'daily') {
@@ -231,9 +233,9 @@ export function VehicleDetails() {
     if (includeFuel) {
       return basePrice; // Full price with fuel
     } else {
-      return basePrice - (selectedDuration === 'daily' ? fuelSurcharge.daily : 
-                         selectedDuration === 'weekly' ? fuelSurcharge.weekly : 
-                         fuelSurcharge.monthly); // Reduced price without fuel
+      return basePrice - (selectedDuration === 'daily' ? fuelSurcharge.daily :
+        selectedDuration === 'weekly' ? fuelSurcharge.weekly :
+          fuelSurcharge.monthly); // Reduced price without fuel
     }
   };
 
@@ -260,7 +262,7 @@ export function VehicleDetails() {
 
       {/* Premium Image Gallery */}
       <div className="relative bg-neutral-900">
-        <div 
+        <div
           className="aspect-[4/3] relative overflow-hidden"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
@@ -271,7 +273,7 @@ export function VehicleDetails() {
             alt={vehicle.name}
             className="w-full h-full object-cover"
           />
-          
+
           {/* Verified Badge */}
           <div className="absolute top-4 left-6">
             <div className="flex items-center gap-2 bg-white/95 backdrop-blur-sm px-3 py-2 rounded-full shadow-lg">
@@ -298,7 +300,7 @@ export function VehicleDetails() {
             </div>
           </div>
         </div>
-        
+
         {/* Thumbnail Gallery */}
         {vehicle.images.length > 1 && (
           <div className="flex gap-2 p-4 overflow-x-auto bg-neutral-900">
@@ -306,11 +308,10 @@ export function VehicleDetails() {
               <button
                 key={index}
                 onClick={() => setSelectedImageIndex(index)}
-                className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
-                  index === selectedImageIndex 
-                    ? 'border-[#d4af37] scale-105' 
-                    : 'border-white/20 opacity-60 hover:opacity-100'
-                }`}
+                className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${index === selectedImageIndex
+                  ? 'border-[#d4af37] scale-105'
+                  : 'border-white/20 opacity-60 hover:opacity-100'
+                  }`}
               >
                 <ImageWithFallback
                   src={image}
@@ -330,10 +331,10 @@ export function VehicleDetails() {
             <h1 className="text-3xl font-bold text-gray-900 mb-1">{vehicle.name}</h1>
             <p className="text-lg text-gray-600">{vehicle.category}{vehicle.year ? ` • ${vehicle.year}` : ''}</p>
           </div>
-          
+
           <div className="flex items-center gap-4 flex-wrap">
             {(vehicle.rating > 0 || vehicle.reviewCount > 0) && (
-              <button 
+              <button
                 onClick={() => setShowReviews(true)}
                 className="flex items-center gap-2 bg-gradient-to-r from-yellow-50 to-orange-50 px-4 py-2.5 rounded-xl border border-yellow-200 hover:border-yellow-300 transition-all"
               >
@@ -342,7 +343,7 @@ export function VehicleDetails() {
                 <span className="text-gray-600">({vehicle.reviewCount || 0} reviews)</span>
               </button>
             )}
-            
+
             <Badge className={vehicle.ownershipType === 'platform' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}>
               {vehicle.ownershipType === 'platform' ? 'Platform Owned' : 'Agent Owned'}
             </Badge>
@@ -367,7 +368,7 @@ export function VehicleDetails() {
                   <Shield className="w-3 h-3" />
                 </div>
               </div>
-              
+
               <div className="flex-1">
                 <div className="flex items-start justify-between mb-2">
                   <div>
@@ -375,7 +376,7 @@ export function VehicleDetails() {
                     <p className="text-sm text-gray-600">Vehicle Agent</p>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-3 text-center">
                   <div className="bg-white/70 backdrop-blur rounded-lg px-2 py-2">
                     <p className="text-xs text-gray-600 mb-0.5">Vehicles</p>
@@ -386,7 +387,7 @@ export function VehicleDetails() {
                     <p className="font-bold text-gray-900 text-xs">{vehicle.agent.coverageArea.join(', ')}</p>
                   </div>
                 </div>
-                
+
                 <div className="mt-3 flex items-center gap-2 text-xs text-gray-600">
                   <Calendar className="w-3.5 h-3.5" />
                   <span>Member since {vehicle.agent.memberSince}</span>
@@ -471,17 +472,19 @@ export function VehicleDetails() {
                   <p className="text-lg font-semibold text-gray-900">{vehicle.seats}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-blue-200 hover:shadow-md transition-all">
                 <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
                   <Fuel className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Fuel Type</p>
-                  <p className="text-lg font-semibold text-gray-900">{vehicle.fuelType}</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {capitalizeFirstLetter(vehicle.fuelType)}
+                  </p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-blue-200 hover:shadow-md transition-all">
                 <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center">
                   <Cog className="w-6 h-6 text-purple-600" />
@@ -491,7 +494,7 @@ export function VehicleDetails() {
                   <p className="text-sm font-semibold text-gray-900">{vehicle.transmission}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-blue-200 hover:shadow-md transition-all">
                 <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
                   <Shield className="w-6 h-6 text-orange-600" />
@@ -544,7 +547,7 @@ export function VehicleDetails() {
               {vehicle.features && vehicle.features.length > 0 ? (
                 <div className="grid grid-cols-2 gap-2">
                   {vehicle.features.map((feature, index) => (
-                    <div 
+                    <div
                       key={index}
                       className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200"
                     >
@@ -566,11 +569,10 @@ export function VehicleDetails() {
             <div className="grid grid-cols-1 gap-3">
               <button
                 onClick={() => setSelectedDuration('hourly')}
-                className={`p-5 rounded-xl border-2 transition-all text-left ${
-                  selectedDuration === 'hourly'
-                    ? 'border-blue-600 bg-blue-50 shadow-lg shadow-blue-100'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-                }`}
+                className={`p-5 rounded-xl border-2 transition-all text-left ${selectedDuration === 'hourly'
+                  ? 'border-blue-600 bg-blue-50 shadow-lg shadow-blue-100'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -596,11 +598,10 @@ export function VehicleDetails() {
 
               <button
                 onClick={() => setSelectedDuration('daily')}
-                className={`p-5 rounded-xl border-2 transition-all text-left relative overflow-hidden ${
-                  selectedDuration === 'daily'
-                    ? 'border-blue-600 bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg'
-                    : 'border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 hover:border-blue-300'
-                }`}
+                className={`p-5 rounded-xl border-2 transition-all text-left relative overflow-hidden ${selectedDuration === 'daily'
+                  ? 'border-blue-600 bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg'
+                  : 'border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 hover:border-blue-300'
+                  }`}
               >
                 <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-bl-lg">
                   POPULAR
@@ -629,11 +630,10 @@ export function VehicleDetails() {
 
               <button
                 onClick={() => setSelectedDuration('weekly')}
-                className={`p-5 rounded-xl border-2 transition-all text-left ${
-                  selectedDuration === 'weekly'
-                    ? 'border-green-600 bg-green-50 shadow-lg shadow-green-100'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-                }`}
+                className={`p-5 rounded-xl border-2 transition-all text-left ${selectedDuration === 'weekly'
+                  ? 'border-green-600 bg-green-50 shadow-lg shadow-green-100'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className={`text-sm font-medium ${selectedDuration === 'weekly' ? 'text-green-900' : 'text-gray-600'}`}>
@@ -661,11 +661,10 @@ export function VehicleDetails() {
 
               <button
                 onClick={() => setSelectedDuration('monthly')}
-                className={`p-5 rounded-xl border-2 transition-all text-left ${
-                  selectedDuration === 'monthly'
-                    ? 'border-purple-600 bg-purple-50 shadow-lg shadow-purple-100'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-                }`}
+                className={`p-5 rounded-xl border-2 transition-all text-left ${selectedDuration === 'monthly'
+                  ? 'border-purple-600 bg-purple-50 shadow-lg shadow-purple-100'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className={`text-sm font-medium ${selectedDuration === 'monthly' ? 'text-purple-900' : 'text-gray-600'}`}>
@@ -701,24 +700,22 @@ export function VehicleDetails() {
               <Fuel className="w-5 h-5 text-green-600" />
               Fuel Options
             </h3>
-            
+
             <div className="space-y-3">
               {/* Option 1: Fuel Included */}
               <button
                 onClick={() => setIncludeFuel(true)}
-                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                  includeFuel
-                    ? 'border-green-600 bg-white shadow-md'
-                    : 'border-green-200 bg-white/50 hover:border-green-300'
-                }`}
+                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${includeFuel
+                  ? 'border-green-600 bg-white shadow-md'
+                  : 'border-green-200 bg-white/50 hover:border-green-300'
+                  }`}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-start gap-3">
-                    <div className={`w-5 h-5 rounded-full border-2 mt-0.5 flex items-center justify-center ${
-                      includeFuel
-                        ? 'border-green-600 bg-green-600'
-                        : 'border-gray-300'
-                    }`}>
+                    <div className={`w-5 h-5 rounded-full border-2 mt-0.5 flex items-center justify-center ${includeFuel
+                      ? 'border-green-600 bg-green-600'
+                      : 'border-gray-300'
+                      }`}>
                       {includeFuel && <Check className="w-3 h-3 text-white" />}
                     </div>
                     <div>
@@ -732,11 +729,11 @@ export function VehicleDetails() {
                     <p className="font-bold text-gray-900">
                       ${selectedDuration === 'daily' ? vehicle.pricePerDay :
                         selectedDuration === 'weekly' ? vehicle.pricePerWeek :
-                        vehicle.pricePerMonth}
+                          vehicle.pricePerMonth}
                     </p>
                     <p className="text-xs text-gray-500">
                       {selectedDuration === 'daily' ? '/day' :
-                       selectedDuration === 'weekly' ? '/week' : '/month'}
+                        selectedDuration === 'weekly' ? '/week' : '/month'}
                     </p>
                   </div>
                 </div>
@@ -751,19 +748,17 @@ export function VehicleDetails() {
               {/* Option 2: Pay for Fuel */}
               <button
                 onClick={() => setIncludeFuel(false)}
-                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                  !includeFuel
-                    ? 'border-blue-600 bg-white shadow-md'
-                    : 'border-green-200 bg-white/50 hover:border-green-300'
-                }`}
+                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${!includeFuel
+                  ? 'border-blue-600 bg-white shadow-md'
+                  : 'border-green-200 bg-white/50 hover:border-green-300'
+                  }`}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-start gap-3">
-                    <div className={`w-5 h-5 rounded-full border-2 mt-0.5 flex items-center justify-center ${
-                      !includeFuel
-                        ? 'border-blue-600 bg-blue-600'
-                        : 'border-gray-300'
-                    }`}>
+                    <div className={`w-5 h-5 rounded-full border-2 mt-0.5 flex items-center justify-center ${!includeFuel
+                      ? 'border-blue-600 bg-blue-600'
+                      : 'border-gray-300'
+                      }`}>
                       {!includeFuel && <Check className="w-3 h-3 text-white" />}
                     </div>
                     <div>
@@ -777,11 +772,11 @@ export function VehicleDetails() {
                     <p className="font-bold text-gray-900">
                       ${selectedDuration === 'daily' ? vehicle.pricePerDay - fuelSurcharge.daily :
                         selectedDuration === 'weekly' ? vehicle.pricePerWeek - fuelSurcharge.weekly :
-                        vehicle.pricePerMonth - fuelSurcharge.monthly}
+                          vehicle.pricePerMonth - fuelSurcharge.monthly}
                     </p>
                     <p className="text-xs text-gray-500">
                       {selectedDuration === 'daily' ? '/day' :
-                       selectedDuration === 'weekly' ? '/week' : '/month'}
+                        selectedDuration === 'weekly' ? '/week' : '/month'}
                     </p>
                   </div>
                 </div>
@@ -821,15 +816,15 @@ export function VehicleDetails() {
                 <div className="text-5xl font-bold text-gray-900 mb-1">{vehicle.rating}</div>
                 <div className="flex items-center justify-center gap-1 mb-2">
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <Star 
-                      key={star} 
-                      className={`w-4 h-4 ${star <= Math.floor(vehicle.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+                    <Star
+                      key={star}
+                      className={`w-4 h-4 ${star <= Math.floor(vehicle.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
                     />
                   ))}
                 </div>
                 <div className="text-sm text-gray-600">{vehicle.reviewCount} reviews</div>
               </div>
-              
+
               <div className="flex-1 space-y-2">
                 {ratingBreakdown.map((item) => (
                   <div key={item.stars} className="flex items-center gap-3">
@@ -861,9 +856,9 @@ export function VehicleDetails() {
                     </div>
                     <div className="flex items-center gap-1 mb-2">
                       {[1, 2, 3, 4, 5].map((star) => (
-                        <Star 
-                          key={star} 
-                          className={`w-4 h-4 ${star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+                        <Star
+                          key={star}
+                          className={`w-4 h-4 ${star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
                         />
                       ))}
                     </div>
@@ -890,7 +885,7 @@ export function VehicleDetails() {
               </p>
             </div>
           )}
-          
+
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <p className="text-xs text-gray-500 font-medium mb-1">
