@@ -1,11 +1,5 @@
 export function getApiBaseUrl() {
-  const envBaseUrl = import.meta.env.VITE_API_BASE_URL
-
-  if (typeof envBaseUrl === 'string' && envBaseUrl.trim().length > 0) {
-    return envBaseUrl.replace(/\/+$/, '')
-  }
-
-  return 'http://localhost:3000/api/v1'
+  return 'http://localhost:3000'
 }
 
 interface ApiJsonOptions {
