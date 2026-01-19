@@ -1,19 +1,34 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Checkbox } from '../ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '../ui/select';
+import { toast } from 'sonner';
+import { apiJson } from '../../lib/api';
+import { endpoints } from '../../lib/endpoints';
 
-const CITIES = ['New York', 'Los Angeles', 'Chicago', 'Miami', 'San Francisco', 'Las Vegas'] as const;
+const IS_VERIFY_EMAIL_ENABLED = false;
+
+interface City {
+  id: string;
+  name: string;
+}
 
 interface FormData {
   email: string;
   password: string;
-  name: string;
-  phone: string;
-  city: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  cityId: string;
+}
+
+interface CitiesResponse {
+  statusCode: number;
+  message: string;
+  data: City[];
 }
 
 
@@ -22,24 +37,103 @@ export function Register() {
   const [formData, setFormData] = useState<FormData>({
     email: '',
     password: '',
-    name: '',
-    phone: '',
-    city: '',
+    firstName: '',
+    lastName: '',
+    phoneNumber: '',
+    cityId: '',
   });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [cities, setCities] = useState<City[]>([]);
+  const [isCitiesLoading, setIsCitiesLoading] = useState(true);
+  const [citiesError, setCitiesError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    navigate('/verify-email');
-  }, [navigate]);
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCities() {
+      setIsCitiesLoading(true);
+      setCitiesError(null);
+
+      try {
+        const response = await apiJson<CitiesResponse>({
+          path: endpoints.auth.publicCities,
+        });
+
+        if (!isMounted) return;
+
+        setCities(response.data || []);
+
+        if (!formData.cityId && response.data && response.data.length > 0) {
+          setFormData(prev => ({ ...prev, cityId: response.data[0].id }));
+        }
+      } catch (error) {
+        if (!isMounted) return;
+
+        const message = error instanceof Error ? error.message : 'Failed to load cities';
+        setCitiesError(message);
+      } finally {
+        if (!isMounted) return;
+        setIsCitiesLoading(false);
+      }
+    }
+
+    loadCities();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [formData.cityId]);
 
   const handleFieldChange = useCallback((field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   }, []);
 
   const handleCityChange = useCallback((value: string) => {
-    setFormData(prev => ({ ...prev, city: value }));
+    setFormData(prev => ({ ...prev, cityId: value }));
   }, []);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const payload = {
+        email: formData.email.trim(),
+        password: formData.password,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        phoneNumber: formData.phoneNumber.trim(),
+        cityId: formData.cityId || undefined,
+      };
+
+      await apiJson({
+        path: endpoints.auth.registerUser,
+        method: 'POST',
+        body: payload,
+      });
+
+      toast.success('Account created successfully. Please log in.');
+
+      if (IS_VERIFY_EMAIL_ENABLED) {
+        navigate('/verify-email');
+        return;
+      }
+
+      navigate('/login');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create account';
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [formData, isSubmitting, navigate]);
+
+  const isSubmitDisabled =
+    !agreedToTerms || isSubmitting || isCitiesLoading || !formData.cityId || !formData.firstName || !formData.lastName;
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -52,13 +146,25 @@ export function Register() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="firstName">First Name</Label>
               <Input
-                id="name"
+                id="firstName"
                 type="text"
-                placeholder="John Doe"
-                value={formData.name}
-                onChange={(e) => handleFieldChange('name', e.target.value)}
+                placeholder="John"
+                value={formData.firstName}
+                onChange={(e) => handleFieldChange('firstName', e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                type="text"
+                placeholder="Doe"
+                value={formData.lastName}
+                onChange={(e) => handleFieldChange('lastName', e.target.value)}
                 required
               />
             </div>
@@ -76,13 +182,13 @@ export function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="phoneNumber">Phone Number</Label>
               <Input
-                id="phone"
+                id="phoneNumber"
                 type="tel"
                 placeholder="+1 234 567 8900"
-                value={formData.phone}
-                onChange={(e) => handleFieldChange('phone', e.target.value)}
+                value={formData.phoneNumber}
+                onChange={(e) => handleFieldChange('phoneNumber', e.target.value)}
                 required
               />
             </div>
@@ -104,14 +210,22 @@ export function Register() {
 
             <div className="space-y-2">
               <Label htmlFor="city">City</Label>
-              <Select value={formData.city} onValueChange={handleCityChange}>
+              <Select
+                value={formData.cityId}
+                onValueChange={handleCityChange}
+                disabled={isCitiesLoading || !!citiesError}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select your city" />
+                  <SelectValue
+                    placeholder={
+                      isCitiesLoading ? 'Loading cities...' : citiesError ? 'Failed to load cities' : 'Select your city'
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {CITIES.map((city) => (
-                    <SelectItem key={city} value={city}>
-                      {city}
+                  {cities.map((city) => (
+                    <SelectItem key={city.id} value={city.id}>
+                      {city.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -129,7 +243,7 @@ export function Register() {
               </label>
             </div>
 
-            <Button type="submit" className="w-full h-12" disabled={!agreedToTerms}>
+            <Button type="submit" className="w-full h-12" disabled={isSubmitDisabled}>
               Create Account
             </Button>
           </form>
