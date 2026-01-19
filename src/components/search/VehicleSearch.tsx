@@ -16,9 +16,10 @@ import {
   SheetTitle,
 } from '../ui/sheet';
 import React from 'react';
-import { searchVehicles, PricingType, VehicleType } from '../../lib/vehicleSearch';
+import { searchVehicles, PricingType } from '../../lib/vehicleSearch';
 import type { Vehicle } from '../../contexts/AppContext';
 import { toast } from 'sonner';
+import { VehicleCardSkeleton } from './VehicleCardSkeleton';
 
 export function VehicleSearch() {
   const navigate = useNavigate();
@@ -35,6 +36,7 @@ export function VehicleSearch() {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   // API state
+  const [allResults, setAllResults] = useState<Vehicle[]>([]);
   const [results, setResults] = useState<Vehicle[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -46,17 +48,9 @@ export function VehicleSearch() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const lastQueryRef = useRef<string>('');
 
-  const categories = [
+  const [categories, setCategories] = useState<{ id: string; label: string }[]>([
     { id: 'all', label: 'All' },
-    { id: VehicleType.SEDAN, label: 'Sedan' },
-    { id: VehicleType.SUV, label: 'SUV' },
-    { id: VehicleType.LUXURY, label: 'Luxury' },
-    { id: VehicleType.ELECTRIC, label: 'Electric' },
-    { id: VehicleType.CONVERTIBLE, label: 'Convertible' },
-    { id: VehicleType.HATCHBACK, label: 'Hatchback' },
-    { id: VehicleType.VAN, label: 'Van' },
-    { id: VehicleType.PICKUP, label: 'Pickup' },
-  ];
+  ]);
 
   const durations = [
     { id: 'hourly', label: 'Hourly', icon: Clock, description: 'Short rentals' },
@@ -128,12 +122,17 @@ export function VehicleSearch() {
     }
   }, [selectedDuration]);
 
-  // Fetch vehicles from API
+  const getCategoryLabel = (rawType: string) => {
+    if (!rawType) return 'Unknown';
+    return rawType.charAt(0) + rawType.slice(1).toLowerCase();
+  };
+
+  // Fetch vehicles from API (unfiltered, city/date/duration only)
   const fetchVehicles = useCallback(async (pageNum: number, reset: boolean = false) => {
     const dates = buildSearchDates();
     if (!selectedCity || !dates) return;
 
-    const queryKey = `${selectedCity}-${dates.startISO}-${dates.endISO}-${selectedDuration}-${selectedCategory}-${pageNum}`;
+    const queryKey = `${selectedCity}-${dates.startISO}-${dates.endISO}-${selectedDuration}-${pageNum}`;
 
     if (!reset && queryKey === lastQueryRef.current) return;
 
@@ -150,7 +149,6 @@ export function VehicleSearch() {
         startDate: dates.startISO,
         endDate: dates.endISO,
         pricingType: getPricingType(),
-        vehicleType: selectedCategory !== 'all' ? selectedCategory as any : undefined,
         page: pageNum,
         limit: 10,
       });
@@ -158,14 +156,14 @@ export function VehicleSearch() {
       lastQueryRef.current = queryKey;
 
       if (reset) {
-        setResults(result.vehicles);
+        setAllResults(result.vehicles);
       } else {
-        setResults(prev => [...prev, ...result.vehicles]);
+        setAllResults(prev => [...prev, ...result.vehicles]);
       }
 
       upsertVehicles(result.vehicles);
       setHasMore(result.hasMore);
-      setTotal(result.total);
+      setTotal(prevTotal => (reset ? result.vehicles.length : prevTotal + result.vehicles.length));
       setPage(pageNum);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load vehicles';
@@ -183,6 +181,7 @@ export function VehicleSearch() {
 
     setShowDatePicker(false);
     setDatesApplied(true);
+    setAllResults([]);
     setResults([]);
     setPage(1);
     setHasMore(false);
@@ -195,12 +194,44 @@ export function VehicleSearch() {
     }, 100);
   }, [startDate, endDate, selectedDuration, fetchVehicles]);
 
-  // Fetch vehicles when category changes, but only if dates are already applied
+  // Keep filtered results in sync with selected category and loaded data
   useEffect(() => {
-    if (datesApplied && startDate && selectedCity) {
-      fetchVehicles(1, true);
+    if (!datesApplied) {
+      setResults([]);
+      setTotal(0);
+      return;
     }
-  }, [selectedCategory, datesApplied, startDate, selectedCity, fetchVehicles]);
+
+    const filtered =
+      selectedCategory === 'all'
+        ? allResults
+        : allResults.filter((vehicle) => vehicle.category === selectedCategory);
+
+    setResults(filtered);
+    setTotal(filtered.length);
+  }, [allResults, selectedCategory, datesApplied]);
+
+  // Derive categories from loaded vehicles and refresh after lazy loading
+  useEffect(() => {
+    if (!allResults.length) {
+      setCategories([{ id: 'all', label: 'All' }]);
+      return;
+    }
+
+    const typeSet = new Set<string>();
+    allResults.forEach((vehicle) => {
+      if (vehicle.category) {
+        typeSet.add(vehicle.category);
+      }
+    });
+
+    const dynamicCategories = Array.from(typeSet).map((type) => ({
+      id: type,
+      label: getCategoryLabel(type),
+    }));
+
+    setCategories([{ id: 'all', label: 'All' }, ...dynamicCategories]);
+  }, [allResults]);
 
   // Intersection observer for infinite scroll
   useEffect(() => {
@@ -413,9 +444,10 @@ export function VehicleSearch() {
                 </p>
               </div>
             ) : isLoading ? (
-              <div className="text-center py-16">
-                <Loader2 className="w-12 h-12 text-[#d4af37] animate-spin mx-auto mb-4" />
-                <p className="text-neutral-600">Loading vehicles...</p>
+              <div className="space-y-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <VehicleCardSkeleton key={i} />
+                ))}
               </div>
             ) : error ? (
               <div className="text-center py-16">
