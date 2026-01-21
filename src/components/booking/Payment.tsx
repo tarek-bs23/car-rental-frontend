@@ -6,6 +6,7 @@ import { ChevronLeft, CreditCard, Lock } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Label } from '../ui/label';
 import { PremiumLoader } from '../ui/PremiumLoader';
+import React from 'react';
 
 export function Payment() {
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ export function Payment() {
     // Simulate payment processing
     setTimeout(() => {
       const bookingId = `BK${Date.now()}`;
-      
+
       // Create booking
       addBooking({
         id: bookingId,
@@ -61,10 +62,10 @@ export function Payment() {
   // Show loading overlay when processing
   if (isProcessing) {
     return (
-      <PremiumLoader 
-        fullScreen 
+      <PremiumLoader
+        fullScreen
         size="lg"
-        text="Processing your payment securely..." 
+        text="Processing your payment securely..."
       />
     );
   }
@@ -85,16 +86,16 @@ export function Payment() {
       </div>
 
       <div className="px-4 py-6 space-y-6 max-w-md mx-auto">
-        {/* Amount */}
+        {/* Amount from Booking Summary */}
         <div className="bg-white rounded-xl p-6 shadow-sm text-center">
           <p className="text-sm text-gray-500 mb-1">Total Amount</p>
           <p className="text-gray-900">${total}</p>
         </div>
 
-        {/* Payment Methods */}
+        {/* Payment Methods (kept static) */}
         <div className="bg-white rounded-xl p-4 shadow-sm space-y-4">
           <h2 className="text-gray-900">Payment Method</h2>
-          
+
           <RadioGroup value={selectedPayment} onValueChange={setSelectedPayment}>
             {savedPaymentMethods.map((method) => (
               <div
@@ -124,37 +125,6 @@ export function Payment() {
           >
             Add New Payment Method
           </Button>
-        </div>
-
-        {/* Security Notice */}
-        <div className="bg-gray-100 rounded-xl p-4 flex items-start gap-3">
-          <Lock className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm text-gray-900">Secure Payment</p>
-            <p className="text-xs text-gray-600 mt-1">
-              Your payment information is encrypted and secure. We use Stripe for payment processing.
-            </p>
-          </div>
-        </div>
-
-        {/* Billing Summary */}
-        <div className="bg-white rounded-xl p-4 shadow-sm space-y-2">
-          <h3 className="text-gray-900 mb-3">Billing Summary</h3>
-          
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Subtotal</span>
-            <span className="text-gray-900">${total}</span>
-          </div>
-          
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Taxes & Fees</span>
-            <span className="text-gray-900">$0</span>
-          </div>
-          
-          <div className="pt-2 border-t border-gray-200 flex justify-between">
-            <span className="text-gray-900">Total</span>
-            <span className="text-gray-900">${total}</span>
-          </div>
         </div>
       </div>
 
