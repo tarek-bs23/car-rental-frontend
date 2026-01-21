@@ -123,6 +123,7 @@ export interface CartItem {
   displayName?: string;
   thumbnail?: string;
   serviceDetails?: string;
+  durationDisplay?: string;
 }
 
 interface BackendCartItem {
@@ -135,6 +136,7 @@ interface BackendCartItem {
   startDate: string;
   endDate: string | null;
   pricingType: 'HOURLY' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  duration?: string;
   startTime?: string;
   endTime?: string;
   unitPrice: number;
@@ -363,6 +365,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       displayName: item.displayName,
       thumbnail: item.thumbnail,
       serviceDetails,
+      durationDisplay: item.duration,
     };
   }, []);
 

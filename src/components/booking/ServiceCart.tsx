@@ -189,6 +189,7 @@ export function ServiceCart() {
             serviceDetails={vehicle ? `${vehicle.category} • ${vehicle.seats} seats` : vehicleItem.serviceDetails || 'Vehicle rental'}
             basePricePerDay={vehicle?.pricePerDay || vehicleItem.unitPrice}
             duration={vehicleItem.duration}
+            durationDisplay={vehicleItem.durationDisplay}
             startDate={vehicleItem.startDate}
             endDate={vehicleItem.endDate}
             startTime={vehicleItem.startTime}
@@ -217,6 +218,7 @@ export function ServiceCart() {
               serviceDetails={driver ? `${driver.experience} years experience` : driverItem.serviceDetails || 'Professional driver'}
               basePricePerHour={driver?.pricePerHour || driverItem.unitPrice}
               duration={driverItem.duration}
+              durationDisplay={driverItem.durationDisplay}
               startDate={driverItem.startDate}
               endDate={driverItem.endDate}
               startTime={driverItem.startTime}
@@ -246,6 +248,7 @@ export function ServiceCart() {
               serviceDetails={bodyguard ? `${bodyguard.securityLevel} • ${bodyguard.experience}y exp` : bodyguardItem.serviceDetails || 'Security service'}
               basePricePerHour={bodyguard?.pricePerHour || bodyguardItem.unitPrice}
               duration={bodyguardItem.duration}
+              durationDisplay={bodyguardItem.durationDisplay}
               startDate={bodyguardItem.startDate}
               endDate={bodyguardItem.endDate}
               startTime={bodyguardItem.startTime}

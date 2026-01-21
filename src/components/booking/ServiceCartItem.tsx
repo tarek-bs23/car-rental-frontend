@@ -9,6 +9,7 @@ interface ServiceCartItemProps {
   basePricePerDay?: number;
   basePricePerHour?: number;
   duration: 'hourly' | 'daily' | 'weekly' | 'monthly' | 'halfday' | 'fullday';
+  durationDisplay?: string;
   startDate: Date;
   endDate: Date | null;
   startTime: string;
@@ -48,6 +49,7 @@ export function ServiceCartItem({
   serviceImage,
   serviceDetails,
   duration,
+  durationDisplay,
   onRemove
 }: ServiceCartItemProps) {
   const colors = colorMap[type];
@@ -56,6 +58,19 @@ export function ServiceCartItem({
     if (type === 'vehicle') return 'Vehicle';
     if (type === 'driver') return 'Driver';
     return 'Security';
+  };
+
+  const getDurationText = () => {
+    if (durationDisplay) {
+      return durationDisplay;
+    }
+    if (duration === 'hourly') return '8 hours';
+    if (duration === 'daily') return '3 days';
+    if (duration === 'weekly') return '7 days';
+    if (duration === 'monthly') return '30 days';
+    if (duration === 'halfday') return '12 hours';
+    if (duration === 'fullday') return '24 hours';
+    return '';
   };
 
   return (
@@ -83,14 +98,7 @@ export function ServiceCartItem({
 
           <div className="mt-3">
             <div className={`inline-flex items-center gap-1.5 px-2 py-1 ${colors.badge} text-white rounded text-xs font-medium`}>
-              <span>
-                {duration === 'hourly' && '8 hours'}
-                {duration === 'daily' && '3 days'}
-                {duration === 'weekly' && '7 days'}
-                {duration === 'monthly' && '30 days'}
-                {duration === 'halfday' && '12 hours'}
-                {duration === 'fullday' && '24 hours'}
-              </span>
+              <span>{getDurationText()}</span>
             </div>
           </div>
         </div>
