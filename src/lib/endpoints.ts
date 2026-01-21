@@ -23,6 +23,9 @@ export const endpoints = {
     root: `${API_VERSION}/cart`,
     items: `${API_VERSION}/cart/items`,
   },
+  checkout: `${API_VERSION}/checkout`,
+  checkoutConfirm: `${API_VERSION}/checkout/confirm`,
+  checkoutById: (intentId: string) => `${API_VERSION}/checkout/${intentId}`,
 }
 
 

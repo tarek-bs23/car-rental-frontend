@@ -7,56 +7,90 @@ import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Label } from '../ui/label';
 import { PremiumLoader } from '../ui/PremiumLoader';
 import React from 'react';
+import { apiJson } from '../../lib/api';
+import { endpoints } from '../../lib/endpoints';
 
 export function Payment() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { savedPaymentMethods, addBooking } = useApp();
+  const { savedPaymentMethods } = useApp();
   const [selectedPayment, setSelectedPayment] = useState(
     savedPaymentMethods[0]?.id || ''
   );
   const [isProcessing, setIsProcessing] = useState(false);
 
   const total = searchParams.get('total') || '0';
-  const vehicleId = searchParams.get('vehicleId');
-  const driverId = searchParams.get('driverId');
-  const bodyguardId = searchParams.get('bodyguardId');
-  const driverHours = parseInt(searchParams.get('driverHours') || '0');
-  const bodyguardHours = parseInt(searchParams.get('bodyguardHours') || '0');
-  const duration = searchParams.get('duration') as 'hourly' | 'daily' | 'weekly' | 'monthly' || 'daily';
-  const startDate = searchParams.get('startDate');
-  const startTime = searchParams.get('startTime');
-  const endDate = searchParams.get('endDate');
-  const endTime = searchParams.get('endTime');
 
   const handlePayment = async () => {
     setIsProcessing(true);
 
-    // Simulate payment processing
-    setTimeout(() => {
-      const bookingId = `BK${Date.now()}`;
+    try {
+      type CheckoutResponse = {
+        statusCode: number;
+        message: string;
+        data: {
+          intentId: string;
+          status: string;
+          totalAmount: number;
+          currency: string;
+          paymentStatus: string;
+          paymentAttemptId: string;
+          timestamp: string;
+        };
+      };
 
-      // Create booking
-      addBooking({
-        id: bookingId,
-        vehicleId: vehicleId || undefined,
-        driverId: driverId || undefined,
-        bodyguardId: bodyguardId || undefined,
-        driverHours: driverHours || undefined,
-        bodyguardHours: bodyguardHours || undefined,
-        startDate: startDate || new Date().toISOString(),
-        endDate: endDate || new Date(Date.now() + 86400000).toISOString(),
-        startTime: startTime || undefined,
-        endTime: endTime || undefined,
-        duration: duration || 'daily',
-        totalAmount: parseFloat(total),
-        status: 'confirmed',
-        createdAt: new Date().toISOString(),
+      type CheckoutConfirmResponse = {
+        statusCode: number;
+        message: string;
+        data: {
+          intentId: string;
+          status: string;
+          paymentStatus: string;
+          externalPaymentId?: string;
+          timestamp: string;
+        };
+      };
+
+      const response = await apiJson<CheckoutResponse>({
+        path: endpoints.checkout,
+        method: 'POST',
+        body: {
+          paymentMethod: 'CREDIT_CARD',
+        },
       });
 
+      const intentId = response?.data?.intentId;
+
+      if (!intentId) {
+        throw new Error('Missing intentId from checkout response');
+      }
+
+      // Simulate payment processing
+      setTimeout(async () => {
+        try {
+          await apiJson<CheckoutConfirmResponse>({
+            path: endpoints.checkoutConfirm,
+            method: 'POST',
+            body: {
+              intentId,
+              simulateSuccess: true,
+              externalPaymentId: 'pi_test_123456',
+            },
+          });
+
+          navigate(`/booking/confirmation?intentId=${intentId}`);
+        } catch (error) {
+          console.error('Checkout confirm failed:', error);
+          alert(error instanceof Error ? error.message : 'Payment confirmation failed. Please try again.');
+        } finally {
+          setIsProcessing(false);
+        }
+      }, 2000);
+    } catch (error) {
+      console.error('Checkout failed:', error);
+      alert(error instanceof Error ? error.message : 'Payment failed. Please try again.');
       setIsProcessing(false);
-      navigate(`/booking/confirmation?bookingId=${bookingId}`);
-    }, 2000);
+    }
   };
 
   // Show loading overlay when processing
@@ -125,6 +159,38 @@ export function Payment() {
           >
             Add New Payment Method
           </Button>
+        </div>
+
+
+        {/* Security Notice */}
+        <div className="bg-gray-100 rounded-xl p-4 flex items-start gap-3">
+          <Lock className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm text-gray-900">Secure Payment</p>
+            <p className="text-xs text-gray-600 mt-1">
+              Your payment information is encrypted and secure. We use Stripe for payment processing.
+            </p>
+          </div>
+        </div>
+
+        {/* Billing Summary */}
+        <div className="bg-white rounded-xl p-4 shadow-sm space-y-2">
+          <h3 className="text-gray-900 mb-3">Billing Summary</h3>
+
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Subtotal</span>
+            <span className="text-gray-900">${total}</span>
+          </div>
+
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Taxes & Fees</span>
+            <span className="text-gray-900">$0</span>
+          </div>
+
+          <div className="pt-2 border-t border-gray-200 flex justify-between">
+            <span className="text-gray-900">Total</span>
+            <span className="text-gray-900">${total}</span>
+          </div>
         </div>
       </div>
 

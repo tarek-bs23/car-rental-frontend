@@ -1,14 +1,19 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { CheckCircle2, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
+import React from 'react';
+import { apiJson } from '../../lib/api';
+import { endpoints } from '../../lib/endpoints';
 
 export function BookingConfirmation() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const bookingId = searchParams.get('bookingId') || 'BK123456';
+  const intentId = searchParams.get('intentId');
+  const [bookingId, setBookingId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Celebration confetti
@@ -19,7 +24,59 @@ export function BookingConfirmation() {
     });
   }, []);
 
+  useEffect(() => {
+    if (!intentId) {
+      setIsLoading(false);
+      return;
+    }
+
+    type CheckoutStatusResponse = {
+      statusCode: number;
+      message: string;
+      data: {
+        intentId: string;
+        status: string;
+        totalAmount: number;
+        currency: string;
+        paymentStatus: string;
+        paymentAttemptId: string;
+        bookings: {
+          bookingId: string;
+          bookingType: string;
+          resourceId: string;
+          startDate: string;
+          endDate: string;
+          totalPrice: number;
+        }[];
+        failureReason: string | null;
+        timestamp: string;
+      };
+    };
+
+    const fetchStatus = async () => {
+      try {
+        const response = await apiJson<CheckoutStatusResponse>({
+          path: endpoints.checkoutById(intentId),
+        });
+
+        const firstBookingId = response?.data?.bookings?.[0]?.bookingId;
+        setBookingId(firstBookingId || intentId);
+      } catch (error) {
+        console.error('Failed to load checkout status:', error);
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to load booking details.'
+        );
+        setBookingId(intentId);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStatus();
+  }, [intentId]);
+
   const handleCopyBookingId = () => {
+    if (!bookingId) return;
     navigator.clipboard.writeText(bookingId);
     toast.success('Booking ID copied!');
   };
@@ -33,7 +90,7 @@ export function BookingConfirmation() {
             <div className="w-24 h-24 mx-auto">
               <CheckCircle2 className="w-full h-full text-green-600" />
             </div>
-            
+
             <div>
               <h1 className="text-gray-900">Booking Confirmed!</h1>
               <p className="text-gray-600 mt-2">
@@ -47,7 +104,9 @@ export function BookingConfirmation() {
             <div>
               <p className="text-sm text-gray-500 mb-1">Booking ID</p>
               <div className="flex items-center gap-2">
-                <p className="text-gray-900">{bookingId}</p>
+                <p className="text-gray-900">
+                  {isLoading ? 'Loading...' : bookingId || 'N/A'}
+                </p>
                 <button
                   onClick={handleCopyBookingId}
                   className="p-2 hover:bg-gray-100 rounded-lg"
@@ -79,13 +138,13 @@ export function BookingConfirmation() {
 
           {/* CTAs */}
           <div className="space-y-3 pt-4">
-            <Button 
+            <Button
               onClick={() => navigate('/bookings')}
               className="w-full h-12"
             >
               View My Bookings
             </Button>
-            
+
             <Button
               variant="outline"
               onClick={() => navigate('/')}
