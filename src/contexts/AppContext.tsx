@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { mockVehicles, mockDrivers, mockBodyguards } from '../data/mockData';
+import { apiJson } from '../lib/api';
+import { endpoints } from '../lib/endpoints';
 
 export interface Vehicle {
   id: string;
@@ -113,6 +115,39 @@ export interface CartItem {
   endTime: string;
 }
 
+interface BackendCartItem {
+  id: string;
+  itemType: 'VEHICLE' | 'DRIVER' | 'BODYGUARD';
+  vehicleId?: string;
+  driverId?: string;
+  bodyguardId?: string;
+  startDate: string;
+  endDate: string | null;
+  pricingType: 'HOURLY' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  startTime?: string;
+  endTime?: string;
+}
+
+interface BackendCartData {
+  id: string;
+  status: string;
+  items: BackendCartItem[];
+  costBreakdown: {
+    vehicle: number;
+    driver: number;
+    bodyguard: number;
+    total: number;
+  };
+  totalPrice: number;
+  currency: string;
+}
+
+interface BackendCartResponse {
+  statusCode: number;
+  message: string;
+  data: BackendCartData;
+}
+
 interface AppContextType {
   user: User | null;
   setUser: (user: User | null) => void;
@@ -138,6 +173,7 @@ interface AppContextType {
   removeFromCart: (type: 'vehicle' | 'driver' | 'bodyguard') => void;
   updateCartItem: (item: CartItem) => void;
   clearCart: () => void;
+  loadCart: () => Promise<void>;
 }
 
 export interface PaymentMethod {
@@ -236,6 +272,100 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [cart, setCart] = useState<CartItem[]>([]);
 
+  const transformBackendCartItem = useCallback((item: BackendCartItem): CartItem | null => {
+    let type: 'vehicle' | 'driver' | 'bodyguard';
+    let serviceId: string;
+
+    if (item.itemType === 'VEHICLE' && item.vehicleId) {
+      type = 'vehicle';
+      serviceId = item.vehicleId;
+    } else if (item.itemType === 'DRIVER' && item.driverId) {
+      type = 'driver';
+      serviceId = item.driverId;
+    } else if (item.itemType === 'BODYGUARD' && item.bodyguardId) {
+      type = 'bodyguard';
+      serviceId = item.bodyguardId;
+    } else {
+      return null;
+    }
+
+    let duration: 'hourly' | 'daily' | 'weekly' | 'monthly' | 'halfday' | 'fullday';
+    switch (item.pricingType) {
+      case 'HOURLY':
+        duration = 'hourly';
+        break;
+      case 'DAILY':
+        duration = 'daily';
+        break;
+      case 'WEEKLY':
+        duration = 'weekly';
+        break;
+      case 'MONTHLY':
+        duration = 'monthly';
+        break;
+      default:
+        duration = 'daily';
+    }
+
+    const startDateObj = new Date(item.startDate);
+    const endDateObj = item.endDate ? new Date(item.endDate) : null;
+
+    const extractTimeFromISO = (isoString: string): string => {
+      const date = new Date(isoString);
+      const hours = String(date.getUTCHours()).padStart(2, '0');
+      const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+      return `${hours}:${minutes}`;
+    };
+
+    const endTimeValue = item.endTime || (item.endDate ? extractTimeFromISO(item.endDate) : '17:00');
+
+    return {
+      type,
+      serviceId,
+      duration,
+      startDate: startDateObj,
+      endDate: endDateObj,
+      startTime: item.startTime || extractTimeFromISO(item.startDate),
+      endTime: endTimeValue,
+    };
+  }, []);
+
+  const loadCart = useCallback(async () => {
+    if (!isAuthenticated) {
+      setCart([]);
+      return;
+    }
+
+    try {
+      const response = await apiJson<BackendCartResponse>({
+        path: endpoints.cart.root,
+      });
+
+      let cartItems: BackendCartItem[] = [];
+
+      if (response?.data?.items && Array.isArray(response.data.items)) {
+        cartItems = response.data.items;
+      }
+
+      const transformedCart = cartItems
+        .map(transformBackendCartItem)
+        .filter((item): item is CartItem => item !== null);
+
+      setCart(transformedCart);
+    } catch (error) {
+      console.error('Failed to load cart:', error);
+      setCart([]);
+    }
+  }, [isAuthenticated, transformBackendCartItem]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadCart();
+    } else {
+      setCart([]);
+    }
+  }, [isAuthenticated, loadCart]);
+
   const addToCart = useCallback((item: CartItem) => {
     setCart(prev => {
       const existingIndex = prev.findIndex(cartItem => cartItem.type === item.type);
@@ -287,6 +417,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         removeFromCart,
         updateCartItem,
         clearCart,
+        loadCart,
       }}
     >
       {children}
