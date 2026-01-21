@@ -11,6 +11,9 @@ export const endpoints = {
     logout: `${API_VERSION}/auth/user/logout`,
     publicCities: `${API_VERSION}/auth/public/cities`,
   },
+  bookings: {
+    history: `${API_VERSION}/booking/history`,
+  },
   search: {
     vehicles: `${API_VERSION}/search/vehicles`,
     vehicleDetails: (id: string) => `${API_VERSION}/search/vehicles/${id}`,
