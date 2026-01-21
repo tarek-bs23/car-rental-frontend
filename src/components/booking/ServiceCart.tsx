@@ -3,10 +3,44 @@ import { useApp } from '../../contexts/AppContext';
 import { Button } from '../ui/button';
 import { ChevronLeft, ShoppingCart, AlertCircle } from 'lucide-react';
 import { ServiceCartItem } from './ServiceCartItem';
+import React, { useEffect, useState } from 'react';
+import { apiJson } from '../../lib/api';
+import { endpoints } from '../../lib/endpoints';
 
 export function ServiceCart() {
   const navigate = useNavigate();
   const { cart, vehicles, drivers, bodyguards, updateCartItem, removeFromCart, bookings } = useApp();
+
+  const [backendCart, setBackendCart] = useState<unknown | null>(null);
+  const [backendCartLoading, setBackendCartLoading] = useState(false);
+  const [backendCartError, setBackendCartError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchBackendCart() {
+      setBackendCartLoading(true);
+      setBackendCartError(null);
+      try {
+        const response = await apiJson<unknown>({ path: endpoints.cart.root });
+        if (!isMounted) return;
+        setBackendCart(response);
+      } catch (error) {
+        if (!isMounted) return;
+        const message = error instanceof Error ? error.message : 'Failed to load cart';
+        setBackendCartError(message);
+      } finally {
+        if (!isMounted) return;
+        setBackendCartLoading(false);
+      }
+    }
+
+    fetchBackendCart();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const vehicleItem = cart.find(item => item.type === 'vehicle');
   const driverItem = cart.find(item => item.type === 'driver');
@@ -23,12 +57,12 @@ export function ServiceCart() {
 
   // Check if vehicle exists in cart OR user has active vehicle booking for bundle discount eligibility
   const hasVehicle = !!vehicleItem || hasActiveVehicleBooking;
-  
+
   // Check driver-vehicle compatibility
-  const isDriverCompatible = !vehicle || !driver || 
-    driver.compatibleVehicles.includes('All Types') || 
+  const isDriverCompatible = !vehicle || !driver ||
+    driver.compatibleVehicles.includes('All Types') ||
     driver.compatibleVehicles.includes(vehicle.category);
-  
+
   const hasCompatibilityIssue = vehicle && driver && !isDriverCompatible;
 
   // Discount rates
@@ -94,7 +128,7 @@ export function ServiceCart() {
   const handleContinue = () => {
     // Navigate to booking summary with all cart items
     const params = new URLSearchParams();
-    
+
     if (vehicleItem && vehicle) {
       params.set('vehicleId', vehicle.id);
       params.set('vehicleDuration', vehicleItem.duration);
@@ -150,6 +184,21 @@ export function ServiceCart() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
+      <div className="px-4 pt-4 space-y-2">
+        {backendCartLoading && (
+          <div className="text-xs text-gray-500">Loading backend cart...</div>
+        )}
+        {backendCartError && (
+          <div className="text-xs text-red-600">Backend cart error: {backendCartError}</div>
+        )}
+        {backendCart && (
+          <div className="bg-gray-900 text-green-100 text-xs rounded-lg p-3 overflow-x-auto">
+            <pre className="whitespace-pre-wrap break-all">
+              {JSON.stringify(backendCart, null, 2)}
+            </pre>
+          </div>
+        )}
+      </div>
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
         <div className="flex items-center h-14 px-4">
@@ -337,7 +386,7 @@ export function ServiceCart() {
                   <span className="text-gray-600">Subtotal</span>
                   <span className="text-gray-900">${subtotal.toFixed(2)}</span>
                 </div>
-                
+
                 {/* Bundle discount badge */}
                 <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg">
                   <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center">
@@ -357,7 +406,7 @@ export function ServiceCart() {
                 </div>
               </div>
             )}
-            
+
             {/* Total */}
             <div className="flex justify-between items-center">
               <div>

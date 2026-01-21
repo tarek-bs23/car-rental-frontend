@@ -13,6 +13,8 @@ import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { getVehicleDetails } from '../../lib/vehicleSearch';
 import { capitalizeFirstLetter } from '../../lib/utils';
+import { apiJson } from '../../lib/api';
+import { endpoints } from '../../lib/endpoints';
 
 interface Review {
   id: string;
@@ -27,7 +29,7 @@ interface Review {
 export function VehicleDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { vehicles, addToCart, upsertVehicles } = useApp();
+  const { vehicles, addToCart, upsertVehicles, selectedCity } = useApp();
   const [searchParams] = useSearchParams();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [showReviews, setShowReviews] = useState(false);
@@ -43,6 +45,7 @@ export function VehicleDetails() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [apiVehicle, setApiVehicle] = useState<Vehicle | null>(null);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
 
   const contextVehicle = vehicles.find(v => v.id === id);
   const vehicle = apiVehicle || contextVehicle;
@@ -51,6 +54,12 @@ export function VehicleDetails() {
   const urlEndDate = searchParams.get('endDate');
   const urlStartTime = searchParams.get('startTime') || '10:00';
   const urlEndTime = searchParams.get('endTime') || '18:00';
+
+  interface AddToCartResponse {
+    statusCode: number;
+    message: string;
+    data: unknown;
+  }
 
   useEffect(() => {
     if (urlStartDate) {
@@ -902,22 +911,64 @@ export function VehicleDetails() {
               </p>
             </div>
             <Button
-              onClick={() => {
-                addToCart({
-                  type: 'vehicle',
-                  serviceId: vehicle.id,
-                  duration: selectedDuration,
-                  startDate: new Date(),
-                  endDate: null,
-                  startTime: '09:00',
-                  endTime: '17:00',
-                });
-                toast.success('Vehicle added to cart!');
-                navigate('/booking/cart');
+              onClick={async () => {
+                if (!id) return;
+
+                const pricingType =
+                  selectedDuration === 'hourly'
+                    ? 'HOURLY'
+                    : selectedDuration === 'weekly'
+                      ? 'WEEKLY'
+                      : selectedDuration === 'monthly'
+                        ? 'MONTHLY'
+                        : 'DAILY';
+
+                const start = urlStartDate || new Date().toISOString();
+                const end =
+                  urlEndDate ||
+                  (selectedDuration === 'daily' && startDate && endDate
+                    ? endDate.toISOString()
+                    : start);
+
+                setIsAddingToCart(true);
+                try {
+                  const response = await apiJson<AddToCartResponse>({
+                    path: endpoints.cart.items,
+                    method: 'POST',
+                    body: {
+                      itemType: 'VEHICLE',
+                      city: selectedCity,
+                      startDate: start,
+                      endDate: end,
+                      pricingType,
+                      vehicleId: id,
+                    },
+                  });
+
+                  addToCart({
+                    type: 'vehicle',
+                    serviceId: vehicle.id,
+                    duration: selectedDuration,
+                    startDate: startDate || new Date(start),
+                    endDate: endDate || null,
+                    startTime: urlStartTime,
+                    endTime: urlEndTime,
+                  });
+
+                  toast.success(response.message || 'Vehicle added to cart!');
+                  navigate('/booking/cart');
+                } catch (error) {
+                  const message =
+                    error instanceof Error ? error.message : 'Failed to add to cart';
+                  toast.error(message);
+                } finally {
+                  setIsAddingToCart(false);
+                }
               }}
-              className="h-14 px-10 text-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-600/30"
+              disabled={isAddingToCart}
+              className="h-14 px-10 text-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-600/30 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Add to Cart
+              {isAddingToCart ? 'Adding...' : 'Add to Cart'}
             </Button>
           </div>
         </div>

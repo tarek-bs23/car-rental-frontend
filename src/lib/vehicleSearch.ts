@@ -47,7 +47,7 @@ interface ApiPricing {
 }
 
 interface ApiVehicle {
-  _id: string
+  id: string
   make: string
   vehicleModel: string
   year: number
@@ -114,7 +114,7 @@ function mapApiVehicleToVehicle(apiVehicle: ApiVehicle): Vehicle {
   const photos = apiVehicle.photos || []
 
   return {
-    id: apiVehicle._id,
+    id: apiVehicle.id,
     name,
     category: apiVehicle.vehicleType || 'Unknown',
     image: photos[0] || '',

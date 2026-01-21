@@ -15,6 +15,10 @@ export const endpoints = {
     vehicles: `${API_VERSION}/search/vehicles`,
     vehicleDetails: (id: string) => `${API_VERSION}/search/vehicles/${id}`,
   },
+  cart: {
+    root: `${API_VERSION}/cart`,
+    items: `${API_VERSION}/cart/items`,
+  },
 }
 
 
