@@ -119,6 +119,10 @@ export interface CartItem {
   totalPrice?: number;
   currency?: string;
   backendItemId?: string;
+  // Display information from backend
+  displayName?: string;
+  thumbnail?: string;
+  serviceDetails?: string;
 }
 
 interface BackendCartItem {
@@ -127,6 +131,7 @@ interface BackendCartItem {
   vehicleId?: string;
   driverId?: string;
   bodyguardId?: string;
+  cityId?: string;
   startDate: string;
   endDate: string | null;
   pricingType: 'HOURLY' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
@@ -136,6 +141,9 @@ interface BackendCartItem {
   quantity: number;
   totalPrice: number;
   currency: string;
+  status?: string;
+  displayName?: string;
+  thumbnail?: string;
 }
 
 interface BackendCartData {
@@ -329,6 +337,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const endTimeValue = item.endTime || (item.endDate ? extractTimeFromISO(item.endDate) : '17:00');
 
+    // Calculate service details based on item type
+    let serviceDetails = '';
+    if (type === 'vehicle') {
+      serviceDetails = `${item.pricingType.toLowerCase()} rental`;
+    } else if (type === 'driver') {
+      serviceDetails = `Professional driver`;
+    } else if (type === 'bodyguard') {
+      serviceDetails = `Security service`;
+    }
+
     return {
       type,
       serviceId,
@@ -342,6 +360,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       totalPrice: item.totalPrice,
       currency: item.currency,
       backendItemId: item.id,
+      displayName: item.displayName,
+      thumbnail: item.thumbnail,
+      serviceDetails,
     };
   }, []);
 

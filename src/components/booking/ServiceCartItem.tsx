@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import React from 'react';
 
 interface ServiceCartItemProps {
   type: 'vehicle' | 'driver' | 'bodyguard';
@@ -50,7 +51,7 @@ export function ServiceCartItem({
   onRemove
 }: ServiceCartItemProps) {
   const colors = colorMap[type];
-  
+
   const getTypeLabel = () => {
     if (type === 'vehicle') return 'Vehicle';
     if (type === 'driver') return 'Driver';
@@ -60,7 +61,7 @@ export function ServiceCartItem({
   return (
     <div className={`${colors.bg} rounded-xl p-4 border ${colors.border}`}>
       <div className="flex items-start gap-3">
-        <img 
+        <img
           src={serviceImage}
           alt={serviceName}
           className="w-20 h-20 rounded-lg object-cover"
@@ -79,7 +80,7 @@ export function ServiceCartItem({
               <X className="w-5 h-5 text-gray-400 hover:text-red-600" />
             </button>
           </div>
-          
+
           <div className="mt-3">
             <div className={`inline-flex items-center gap-1.5 px-2 py-1 ${colors.badge} text-white rounded text-xs font-medium`}>
               <span>

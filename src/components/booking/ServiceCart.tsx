@@ -181,13 +181,13 @@ export function ServiceCart() {
         )}
 
         {/* Vehicle cart item */}
-        {vehicle && vehicleItem && (
+        {vehicleItem && (
           <ServiceCartItem
             type="vehicle"
-            serviceName={vehicle.name}
-            serviceImage={vehicle.image}
-            serviceDetails={`${vehicle.category} • ${vehicle.seats} seats`}
-            basePricePerDay={vehicle.pricePerDay}
+            serviceName={vehicle?.name || vehicleItem.displayName || 'Vehicle'}
+            serviceImage={vehicle?.image || vehicleItem.thumbnail || 'https://via.placeholder.com/150'}
+            serviceDetails={vehicle ? `${vehicle.category} • ${vehicle.seats} seats` : vehicleItem.serviceDetails || 'Vehicle rental'}
+            basePricePerDay={vehicle?.pricePerDay || vehicleItem.unitPrice}
             duration={vehicleItem.duration}
             startDate={vehicleItem.startDate}
             endDate={vehicleItem.endDate}
@@ -203,7 +203,7 @@ export function ServiceCart() {
         )}
 
         {/* Driver cart item */}
-        {driver && driverItem && (
+        {driverItem && (
           <div className="relative">
             {hasVehicle && (
               <div className="absolute -top-2 -right-2 z-10 bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-full">
@@ -212,10 +212,10 @@ export function ServiceCart() {
             )}
             <ServiceCartItem
               type="driver"
-              serviceName={driver.name}
-              serviceImage={driver.image}
-              serviceDetails={`${driver.experience} years experience`}
-              basePricePerHour={driver.pricePerHour}
+              serviceName={driver?.name || driverItem.displayName || 'Driver'}
+              serviceImage={driver?.image || 'https://via.placeholder.com/150'}
+              serviceDetails={driver ? `${driver.experience} years experience` : driverItem.serviceDetails || 'Professional driver'}
+              basePricePerHour={driver?.pricePerHour || driverItem.unitPrice}
               duration={driverItem.duration}
               startDate={driverItem.startDate}
               endDate={driverItem.endDate}
@@ -232,7 +232,7 @@ export function ServiceCart() {
         )}
 
         {/* Bodyguard cart item */}
-        {bodyguard && bodyguardItem && (
+        {bodyguardItem && (
           <div className="relative">
             {hasVehicle && (
               <div className="absolute -top-2 -right-2 z-10 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full">
@@ -241,10 +241,10 @@ export function ServiceCart() {
             )}
             <ServiceCartItem
               type="bodyguard"
-              serviceName={bodyguard.name}
-              serviceImage={bodyguard.image}
-              serviceDetails={`${bodyguard.securityLevel} • ${bodyguard.experience}y exp`}
-              basePricePerHour={bodyguard.pricePerHour}
+              serviceName={bodyguard?.name || bodyguardItem.displayName || 'Security'}
+              serviceImage={bodyguard?.image || 'https://via.placeholder.com/150'}
+              serviceDetails={bodyguard ? `${bodyguard.securityLevel} • ${bodyguard.experience}y exp` : bodyguardItem.serviceDetails || 'Security service'}
+              basePricePerHour={bodyguard?.pricePerHour || bodyguardItem.unitPrice}
               duration={bodyguardItem.duration}
               startDate={bodyguardItem.startDate}
               endDate={bodyguardItem.endDate}
