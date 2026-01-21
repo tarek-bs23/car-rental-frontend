@@ -113,6 +113,12 @@ export interface CartItem {
   endDate: Date | null;
   startTime: string;
   endTime: string;
+  // Pricing information from backend cart (optional so existing client-only usages still type-check)
+  unitPrice?: number;
+  quantity?: number;
+  totalPrice?: number;
+  currency?: string;
+  backendItemId?: string;
 }
 
 interface BackendCartItem {
@@ -126,6 +132,10 @@ interface BackendCartItem {
   pricingType: 'HOURLY' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
   startTime?: string;
   endTime?: string;
+  unitPrice: number;
+  quantity: number;
+  totalPrice: number;
+  currency: string;
 }
 
 interface BackendCartData {
@@ -327,6 +337,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       endDate: endDateObj,
       startTime: item.startTime || extractTimeFromISO(item.startDate),
       endTime: endTimeValue,
+      unitPrice: item.unitPrice,
+      quantity: item.quantity,
+      totalPrice: item.totalPrice,
+      currency: item.currency,
+      backendItemId: item.id,
     };
   }, []);
 

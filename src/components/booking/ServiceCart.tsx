@@ -40,61 +40,22 @@ export function ServiceCart() {
   const DRIVER_DISCOUNT = 0.10; // 10% off
   const BODYGUARD_DISCOUNT = 0.15; // 15% off
 
-  // Calculate prices
-  const calculateItemPrice = (
-    item: typeof vehicleItem | typeof driverItem | typeof bodyguardItem,
-    service: typeof vehicle | typeof driver | typeof bodyguard
-  ) => {
-    if (!item || !service) return 0;
+  // Use pricing attached to cart items from backend (no re-calculation)
+  const vehiclePrice = cart
+    .filter(item => item.type === 'vehicle')
+    .reduce((sum, item) => sum + (item.totalPrice ?? 0), 0);
 
-    const { duration, startDate, endDate, startTime, endTime } = item;
+  const driverOriginalPrice = cart
+    .filter(item => item.type === 'driver')
+    .reduce((sum, item) => sum + (item.totalPrice ?? 0), 0);
 
-    if (duration === 'hourly') {
-      const hours = 8; // simplified for now
-      const hourlyRate = 'pricePerHour' in service ? service.pricePerHour : service.pricePerDay / 24;
-      return Math.ceil(hourlyRate * hours);
-    } else if (duration === 'halfday') {
-      const hourlyRate = 'pricePerHour' in service ? service.pricePerHour : service.pricePerDay / 24;
-      return Math.ceil(hourlyRate * 12);
-    } else if (duration === 'fullday') {
-      const hourlyRate = 'pricePerHour' in service ? service.pricePerHour : service.pricePerDay / 24;
-      return Math.ceil(hourlyRate * 24);
-    } else if (duration === 'daily') {
-      const days = 3; // simplified for now
-      const dailyRate = 'pricePerDay' in service ? service.pricePerDay : service.pricePerHour * 24;
-      return dailyRate * days;
-    } else if (duration === 'weekly') {
-      // For vehicles, use pricePerWeek if available, otherwise calculate from daily
-      if ('pricePerWeek' in service && service.pricePerWeek) {
-        return service.pricePerWeek;
-      }
-      const dailyRate = 'pricePerDay' in service ? service.pricePerDay : service.pricePerHour * 24;
-      return dailyRate * 7;
-    } else if (duration === 'monthly') {
-      // For vehicles, use pricePerMonth if available, otherwise calculate from daily
-      if ('pricePerMonth' in service && service.pricePerMonth) {
-        return service.pricePerMonth;
-      }
-      const dailyRate = 'pricePerDay' in service ? service.pricePerDay : service.pricePerHour * 24;
-      return dailyRate * 30;
-    }
-    return 0;
-  };
-
-  const vehiclePrice = calculateItemPrice(vehicleItem, vehicle);
-  const driverOriginalPrice = calculateItemPrice(driverItem, driver);
-  const bodyguardOriginalPrice = calculateItemPrice(bodyguardItem, bodyguard);
-
-  // Apply discounts only if vehicle exists
-  const driverDiscount = hasVehicle && driverItem ? driverOriginalPrice * DRIVER_DISCOUNT : 0;
-  const bodyguardDiscount = hasVehicle && bodyguardItem ? bodyguardOriginalPrice * BODYGUARD_DISCOUNT : 0;
-
-  const driverFinalPrice = driverOriginalPrice - driverDiscount;
-  const bodyguardFinalPrice = bodyguardOriginalPrice - bodyguardDiscount;
+  const bodyguardOriginalPrice = cart
+    .filter(item => item.type === 'bodyguard')
+    .reduce((sum, item) => sum + (item.totalPrice ?? 0), 0);
 
   const subtotal = vehiclePrice + driverOriginalPrice + bodyguardOriginalPrice;
-  const totalDiscount = driverDiscount + bodyguardDiscount;
-  const total = vehiclePrice + driverFinalPrice + bodyguardFinalPrice;
+  const total = subtotal;
+  const totalDiscount = 0;
 
   const handleContinue = () => {
     // Navigate to booking summary with all cart items
