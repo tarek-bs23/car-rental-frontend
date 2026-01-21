@@ -81,6 +81,10 @@ export interface Bodyguard {
   pricePerHour: number;
   rating: number;
   city: string;
+  pricePerDay?: number;
+  pricePerWeek?: number;
+  pricePerMonth?: number;
+  availabilityStatus?: string;
 }
 
 export interface Booking {

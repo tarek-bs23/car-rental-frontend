@@ -1,14 +1,17 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useApp } from '../../contexts/AppContext';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useApp, type Bodyguard } from '../../contexts/AppContext';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '../ui/sheet';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { ChevronLeft, Star, Check, Shield, Award, AlertCircle, Users } from 'lucide-react';
+import { ChevronLeft, Star, Check, Shield, Award, AlertCircle, Users, Loader2 } from 'lucide-react';
 import { Progress } from '../ui/progress';
 import { Avatar } from '../ui/avatar';
 import { toast } from 'sonner';
+import { getBodyguardDetails } from '../../lib/bodyguardSearch';
+import { apiJson } from '../../lib/api';
+import { endpoints } from '../../lib/endpoints';
 
 interface Review {
   id: string;
@@ -23,11 +26,67 @@ interface Review {
 export function BodyguardDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { bodyguards, cart, addToCart, bookings } = useApp();
+  const { bodyguards, cart, addToCart, bookings, selectedCity } = useApp();
+  const [searchParams] = useSearchParams();
   const [showReviews, setShowReviews] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'halfday' | 'fullday' | 'weekly' | 'monthly'>('hourly');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [apiBodyguard, setApiBodyguard] = useState<Bodyguard | null>(null);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
 
-  const bodyguard = bodyguards.find(b => b.id === id);
+  const urlDuration = searchParams.get('duration') as 'hourly' | 'daily' | 'weekly' | 'monthly' | null;
+  const urlStartDate = searchParams.get('startDate');
+  const urlEndDate = searchParams.get('endDate');
+  const urlStartTime = searchParams.get('startTime') || '09:00';
+  const urlEndTime = searchParams.get('endTime') || '17:00';
+
+  interface AddToCartResponse {
+    statusCode: number;
+    message: string;
+    data: unknown;
+  }
+
+  const contextBodyguard = bodyguards.find(b => b.id === id);
+  const bodyguard = apiBodyguard || contextBodyguard;
+
+  useEffect(() => {
+    if (!urlDuration) return;
+
+    if (urlDuration === 'daily') {
+      setSelectedDuration('fullday');
+      return;
+    }
+
+    if (['hourly', 'weekly', 'monthly'].includes(urlDuration)) {
+      setSelectedDuration(urlDuration as typeof selectedDuration);
+    }
+  }, [urlDuration]);
+
+  useEffect(() => {
+    if (!id || contextBodyguard) return;
+
+    let cancelled = false;
+    setIsLoading(true);
+    setError(null);
+
+    getBodyguardDetails(id)
+      .then((data) => {
+        if (cancelled) return;
+        setApiBodyguard(data);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : 'Failed to load security service');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, contextBodyguard]);
   
   // Check if vehicle is in cart OR user has active vehicle booking for bundle discount
   const hasVehicleInCart = cart.some(item => item.type === 'vehicle');
@@ -65,6 +124,28 @@ export function BodyguardDetails() {
     { stars: 2, count: 0, percentage: 0 },
     { stars: 1, count: 0, percentage: 0 },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-12 h-12 text-purple-600 animate-spin" />
+        <p className="text-neutral-600">Loading security service details...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6">
+        <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center">
+          <AlertCircle className="w-12 h-12 text-red-500" />
+        </div>
+        <h3 className="text-xl font-semibold text-neutral-900">Failed to Load</h3>
+        <p className="text-neutral-600 text-center">{error}</p>
+        <Button onClick={() => navigate(-1)} variant="outline">Go Back</Button>
+      </div>
+    );
+  }
 
   if (!bodyguard) {
     return (
@@ -627,22 +708,63 @@ export function BodyguardDetails() {
                 </div>
               )}
               <Button
-                onClick={() => {
-                  addToCart({
-                    type: 'bodyguard',
-                    serviceId: bodyguard.id,
-                    duration: selectedDuration,
-                    startDate: new Date(),
-                    endDate: null,
-                    startTime: '09:00',
-                    endTime: '17:00',
-                  });
-                  toast.success('Security service added to cart!');
-                  navigate('/booking/cart');
+                onClick={async () => {
+                  if (!id) return;
+
+                  const pricingType =
+                    selectedDuration === 'hourly'
+                      ? 'HOURLY'
+                      : selectedDuration === 'weekly'
+                        ? 'WEEKLY'
+                        : selectedDuration === 'monthly'
+                          ? 'MONTHLY'
+                          : 'DAILY';
+
+                  const start = urlStartDate || new Date().toISOString();
+                  const end = urlEndDate || start;
+
+                  setIsAddingToCart(true);
+                  try {
+                    const response = await apiJson<AddToCartResponse>({
+                      path: endpoints.cart.items,
+                      method: 'POST',
+                      body: {
+                        itemType: 'BODYGUARD',
+                        city: selectedCity,
+                        startDate: start,
+                        endDate: end,
+                        pricingType,
+                        bodyguardId: id,
+                      },
+                    });
+
+                    const startDateObj = urlStartDate ? new Date(urlStartDate) : new Date(start);
+                    const endDateObj = urlEndDate ? new Date(urlEndDate) : null;
+
+                    addToCart({
+                      type: 'bodyguard',
+                      serviceId: bodyguard.id,
+                      duration: selectedDuration,
+                      startDate: startDateObj,
+                      endDate: endDateObj,
+                      startTime: urlStartTime,
+                      endTime: urlEndTime,
+                    });
+
+                    toast.success(response.message || 'Security service added to cart!');
+                    navigate('/booking/cart');
+                  } catch (error) {
+                    const message =
+                      error instanceof Error ? error.message : 'Failed to add to cart';
+                    toast.error(message);
+                  } finally {
+                    setIsAddingToCart(false);
+                  }
                 }}
-                className="h-14 px-10 text-lg bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 shadow-lg shadow-purple-600/30"
+                disabled={isAddingToCart}
+                className="h-14 px-10 text-lg bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 shadow-lg shadow-purple-600/30 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Add to Cart
+                {isAddingToCart ? 'Adding...' : 'Add to Cart'}
               </Button>
             </div>
           </div>

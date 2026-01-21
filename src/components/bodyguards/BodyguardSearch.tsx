@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../contexts/AppContext';
 import { TopBar } from '../layout/TopBar';
 import { BottomNav } from '../layout/BottomNav';
 import { Button } from '../ui/button';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { Star, Shield, Users, Clock, Calendar, ChevronRight, CheckCircle2, AlertCircle, X } from 'lucide-react';
+import { Star, Shield, Users, Clock, Calendar, ChevronRight, CheckCircle2, AlertCircle, X, Loader2 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { motion } from 'motion/react';
 import { Calendar as CalendarComponent } from '../ui/calendar';
@@ -15,18 +15,32 @@ import {
   SheetHeader,
   SheetTitle,
 } from '../ui/sheet';
+import type { Bodyguard } from '../../contexts/AppContext';
+import { searchBodyguards, PricingType } from '../../lib/bodyguardSearch';
+import { toast } from 'sonner';
 
 export function BodyguardSearch() {
   const navigate = useNavigate();
-  const { bodyguards, selectedCity } = useApp();
+  const { selectedCity } = useApp();
   const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('daily');
-  
+
   // Date/Time state
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [startTime, setStartTime] = useState<string>('10:00');
   const [endTime, setEndTime] = useState<string>('18:00');
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // API state
+  const [results, setResults] = useState<Bodyguard[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const lastQueryRef = useRef<string>('');
 
   const durations = [
     { id: 'hourly', label: 'Hourly', icon: Clock, description: 'Short missions' },
@@ -35,26 +49,10 @@ export function BodyguardSearch() {
     { id: 'monthly', label: 'Monthly', icon: Calendar, description: '30 days' },
   ];
 
-  // Mock availability checker
-  const checkBodyguardAvailability = (bodyguardId: string, start: Date, end: Date) => {
-    const unavailableBodyguards = ['1', '3'];
-    const hasConflict = unavailableBodyguards.includes(bodyguardId);
-    
-    if (hasConflict) {
-      const conflictDay = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24) / 2);
-      return {
-        available: false,
-        conflictDate: addDays(start, conflictDay)
-      };
-    }
-    
-    return { available: true, conflictDate: null };
-  };
-
   // Get booking period based on duration type
-  const getBookingPeriod = () => {
+  const getBookingPeriod = useCallback(() => {
     if (!startDate) return null;
-    
+
     switch (selectedDuration) {
       case 'hourly':
         return {
@@ -77,25 +75,97 @@ export function BodyguardSearch() {
           end: addDays(startDate, 30)
         };
     }
+  }, [startDate, endDate, selectedDuration]);
+
+  // Build ISO dates for API
+  const buildSearchDates = useCallback(() => {
+    const period = getBookingPeriod();
+    if (!period) return null;
+
+    let startISO: string;
+    let endISO: string;
+
+    if (selectedDuration === 'hourly') {
+      const [startHour, startMin] = startTime.split(':').map(Number);
+      const [endHour, endMin] = endTime.split(':').map(Number);
+      const start = new Date(period.start);
+      start.setHours(startHour, startMin, 0, 0);
+      const end = new Date(period.start);
+      end.setHours(endHour, endMin, 0, 0);
+      startISO = start.toISOString();
+      endISO = end.toISOString();
+    } else {
+      startISO = period.start.toISOString();
+      endISO = period.end.toISOString();
+    }
+
+    return { startISO, endISO };
+  }, [getBookingPeriod, selectedDuration, startTime, endTime]);
+
+  // Map duration to pricing type
+  const getPricingType = useCallback(() => {
+    switch (selectedDuration) {
+      case 'hourly': return PricingType.HOURLY;
+      case 'daily': return PricingType.DAILY;
+      case 'weekly': return PricingType.WEEKLY;
+      case 'monthly': return PricingType.MONTHLY;
+    }
+  }, [selectedDuration]);
+
+  const isBodyguardAvailable = (bodyguard: Bodyguard) => {
+    if (!bodyguard.availabilityStatus) return true;
+    return bodyguard.availabilityStatus === 'ONLINE';
   };
 
-  const filteredBodyguards = bodyguards.filter(b => b.city === selectedCity);
+  // Fetch bodyguards from API
+  const fetchBodyguards = useCallback(async (pageNum: number, reset: boolean = false) => {
+    const dates = buildSearchDates();
+    if (!selectedCity || !dates) return;
 
-  // Sort bodyguards by availability
-  const sortedBodyguards = startDate ? [...filteredBodyguards].sort((a, b) => {
-    const period = getBookingPeriod();
-    if (!period) return 0;
-    
-    const aAvailability = checkBodyguardAvailability(a.id, period.start, period.end);
-    const bAvailability = checkBodyguardAvailability(b.id, period.start, period.end);
-    
-    if (aAvailability.available && !bAvailability.available) return -1;
-    if (!aAvailability.available && bAvailability.available) return 1;
-    return 0;
-  }) : filteredBodyguards;
+    const queryKey = `${selectedCity}-${dates.startISO}-${dates.endISO}-${selectedDuration}-${pageNum}`;
+
+    if (!reset && queryKey === lastQueryRef.current) return;
+
+    if (reset) {
+      setIsLoading(true);
+      setError(null);
+    } else {
+      setIsLoadingMore(true);
+    }
+
+    try {
+      const result = await searchBodyguards({
+        city: selectedCity,
+        startDate: dates.startISO,
+        endDate: dates.endISO,
+        pricingType: getPricingType(),
+        page: pageNum,
+        limit: 10,
+      });
+
+      lastQueryRef.current = queryKey;
+
+      if (reset) {
+        setResults(result.bodyguards);
+      } else {
+        setResults(prev => [...prev, ...result.bodyguards]);
+      }
+
+      setHasMore(result.hasMore);
+      setTotal(prevTotal => (reset ? result.bodyguards.length : prevTotal + result.bodyguards.length));
+      setPage(pageNum);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load bodyguards';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+    }
+  }, [selectedCity, buildSearchDates, selectedDuration, getPricingType]);
 
   // Calculate price based on selected duration
-  const getPrice = (bodyguard: typeof bodyguards[0]) => {
+  const getPrice = (bodyguard: Bodyguard) => {
     const period = getBookingPeriod();
     if (!period || !startDate) {
       return { amount: bodyguard.pricePerHour, unit: '/hr' };
@@ -124,16 +194,36 @@ export function BodyguardSearch() {
     setSelectedDuration(newDuration);
     setStartDate(undefined);
     setEndDate(undefined);
+    setResults([]);
+    setPage(1);
+    setHasMore(false);
+    setError(null);
+    lastQueryRef.current = '';
     setShowDatePicker(false);
   };
+
+  const handleApplyDates = useCallback(() => {
+    if (!startDate || (selectedDuration === 'daily' && !endDate)) return;
+
+    setShowDatePicker(false);
+    setResults([]);
+    setPage(1);
+    setHasMore(false);
+    setError(null);
+    lastQueryRef.current = '';
+
+    setTimeout(() => {
+      fetchBodyguards(1, true);
+    }, 100);
+  }, [startDate, endDate, selectedDuration, fetchBodyguards]);
 
   // Format booking period for display
   const formatBookingPeriod = () => {
     if (!startDate) return 'Select dates';
-    
+
     const period = getBookingPeriod();
     if (!period) return 'Select dates';
-    
+
     if (selectedDuration === 'hourly') {
       return `${format(startDate, 'MMM d')} • ${startTime} - ${endTime}`;
     } else if (selectedDuration === 'daily') {
@@ -150,10 +240,27 @@ export function BodyguardSearch() {
 
   const hasSelectedDates = startDate !== undefined;
 
+  // Intersection observer for infinite scroll
+  useEffect(() => {
+    if (!sentinelRef.current || !hasMore || isLoadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          fetchBodyguards(page + 1, false);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, page, fetchBodyguards]);
+
   return (
     <div className="min-h-screen bg-white pb-20">
       <TopBar />
-      
+
       <div className="pt-14">
         {/* Header */}
         <div className="px-6 py-6 border-b border-neutral-100">
@@ -181,23 +288,19 @@ export function BodyguardSearch() {
                     <button
                       key={duration.id}
                       onClick={() => handleDurationChange(duration.id as any)}
-                      className={`p-3 rounded-xl border-2 transition-all ${
-                        isSelected
-                          ? 'border-purple-600 bg-gradient-to-br from-purple-50 to-violet-50 shadow-md'
-                          : 'border-neutral-200 bg-white hover:border-neutral-300 hover:shadow-sm'
-                      }`}
+                      className={`p-3 rounded-xl border-2 transition-all ${isSelected
+                        ? 'border-purple-600 bg-gradient-to-br from-purple-50 to-violet-50 shadow-md'
+                        : 'border-neutral-200 bg-white hover:border-neutral-300 hover:shadow-sm'
+                        }`}
                     >
-                      <Icon className={`w-5 h-5 mb-1.5 mx-auto ${
-                        isSelected ? 'text-purple-600' : 'text-neutral-500'
-                      }`} />
-                      <p className={`text-xs font-semibold mb-0.5 ${
-                        isSelected ? 'text-neutral-900' : 'text-neutral-700'
-                      }`}>
+                      <Icon className={`w-5 h-5 mb-1.5 mx-auto ${isSelected ? 'text-purple-600' : 'text-neutral-500'
+                        }`} />
+                      <p className={`text-xs font-semibold mb-0.5 ${isSelected ? 'text-neutral-900' : 'text-neutral-700'
+                        }`}>
                         {duration.label}
                       </p>
-                      <p className={`text-[10px] ${
-                        isSelected ? 'text-neutral-600' : 'text-neutral-500'
-                      }`}>
+                      <p className={`text-[10px] ${isSelected ? 'text-neutral-600' : 'text-neutral-500'
+                        }`}>
                         {duration.description}
                       </p>
                     </button>
@@ -208,20 +311,17 @@ export function BodyguardSearch() {
               {/* Date Selection Button */}
               <button
                 onClick={() => setShowDatePicker(true)}
-                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                  hasSelectedDates
-                    ? 'border-purple-600 bg-gradient-to-br from-purple-50 to-violet-50'
-                    : 'border-neutral-300 bg-white hover:border-purple-600 hover:shadow-md'
-                }`}
+                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${hasSelectedDates
+                  ? 'border-purple-600 bg-gradient-to-br from-purple-50 to-violet-50'
+                  : 'border-neutral-300 bg-white hover:border-purple-600 hover:shadow-md'
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                      hasSelectedDates ? 'bg-purple-600' : 'bg-neutral-100'
-                    }`}>
-                      <Calendar className={`w-6 h-6 ${
-                        hasSelectedDates ? 'text-white' : 'text-neutral-500'
-                      }`} />
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${hasSelectedDates ? 'bg-purple-600' : 'bg-neutral-100'
+                      }`}>
+                      <Calendar className={`w-6 h-6 ${hasSelectedDates ? 'text-white' : 'text-neutral-500'
+                        }`} />
                     </div>
                     <div>
                       <p className="text-xs text-neutral-600 font-medium mb-0.5">
@@ -230,9 +330,8 @@ export function BodyguardSearch() {
                         {selectedDuration === 'weekly' && 'Select Start Date (7 days)'}
                         {selectedDuration === 'monthly' && 'Select Start Date (30 days)'}
                       </p>
-                      <p className={`font-semibold ${
-                        hasSelectedDates ? 'text-neutral-900' : 'text-neutral-500'
-                      }`}>
+                      <p className={`font-semibold ${hasSelectedDates ? 'text-neutral-900' : 'text-neutral-500'
+                        }`}>
                         {formatBookingPeriod()}
                       </p>
                     </div>
@@ -274,68 +373,88 @@ export function BodyguardSearch() {
                   Choose your protection duration and dates above to see available security services in {selectedCity}
                 </p>
               </div>
+            ) : isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
+              </div>
+            ) : error ? (
+              <div className="text-center py-16">
+                <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <AlertCircle className="w-12 h-12 text-red-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-neutral-900 mb-2">Failed to Load</h3>
+                <p className="text-neutral-600 mb-4">{error}</p>
+                <Button onClick={() => fetchBodyguards(1, true)} variant="outline">
+                  Try Again
+                </Button>
+              </div>
+            ) : results.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-24 h-24 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Shield className="w-12 h-12 text-neutral-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-neutral-900 mb-2">
+                  No Security Services Found
+                </h3>
+                <p className="text-neutral-600 mb-6 max-w-md mx-auto">
+                  Try adjusting your dates to find available security services.
+                </p>
+              </div>
             ) : (
               // Show bodyguards with availability
               <>
                 <div className="mb-4 flex items-center justify-between">
                   <p className="text-sm text-neutral-600">
-                    <span className="font-semibold text-neutral-900">{sortedBodyguards.length}</span> security services found
+                    <span className="font-semibold text-neutral-900">{total}</span> security services found
                   </p>
                   {(() => {
-                    const period = getBookingPeriod();
-                    if (!period) return null;
-                    const availableCount = sortedBodyguards.filter(b => 
-                      checkBodyguardAvailability(b.id, period.start, period.end).available
-                    ).length;
+                    const availableCount = results.filter(isBodyguardAvailable).length;
                     return (
                       <p className="text-sm">
                         <span className="font-semibold text-green-600">{availableCount} available</span>
-                        {availableCount < sortedBodyguards.length && (
-                          <span className="text-neutral-500"> • {sortedBodyguards.length - availableCount} unavailable</span>
+                        {availableCount < results.length && (
+                          <span className="text-neutral-500"> • {results.length - availableCount} unavailable</span>
                         )}
                       </p>
                     );
                   })()}
                 </div>
-                
+
                 <div className="space-y-4">
-                  {sortedBodyguards.map((bodyguard, index) => {
+                  {results.map((bodyguard, index) => {
                     const price = getPrice(bodyguard);
-                    const period = getBookingPeriod();
-                    const availability = period ? checkBodyguardAvailability(bodyguard.id, period.start, period.end) : { available: true, conflictDate: null };
-                    
+                    const available = isBodyguardAvailable(bodyguard);
+
                     return (
                       <motion.button
                         key={bodyguard.id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        transition={{ duration: 0.3, delay: Math.min(index, 5) * 0.05 }}
                         onClick={() => {
-                          if (availability.available) {
+                          if (available) {
                             navigate(`/bodyguard/${bodyguard.id}?duration=${selectedDuration}&startDate=${startDate?.toISOString()}&endDate=${endDate?.toISOString() || startDate?.toISOString()}&startTime=${startTime}&endTime=${endTime}`);
                           }
                         }}
                         className="w-full group"
-                        disabled={!availability.available}
+                        disabled={!available}
                       >
-                        <div className={`bg-white border-2 rounded-2xl overflow-hidden transition-all duration-300 ${
-                          availability.available
-                            ? 'border-neutral-200 hover:shadow-xl hover:border-neutral-300'
-                            : 'border-red-200 opacity-75'
-                        }`}>
+                        <div className={`bg-white border-2 rounded-2xl overflow-hidden transition-all duration-300 ${available
+                          ? 'border-neutral-200 hover:shadow-xl hover:border-neutral-300'
+                          : 'border-red-200 opacity-75'
+                          }`}>
                           {/* Image Section */}
                           <div className="relative aspect-[16/10] overflow-hidden bg-neutral-100">
                             <ImageWithFallback
                               src={bodyguard.image}
                               alt={bodyguard.name}
-                              className={`w-full h-full object-cover transition-transform duration-500 ${
-                                availability.available ? 'group-hover:scale-105' : 'grayscale'
-                              }`}
+                              className={`w-full h-full object-cover transition-transform duration-500 ${available ? 'group-hover:scale-105' : 'grayscale'
+                                }`}
                             />
-                            
+
                             {/* Availability Badge - Top Priority */}
                             <div className="absolute top-3 left-3">
-                              {availability.available ? (
+                              {available ? (
                                 <div className="flex items-center gap-1.5 bg-green-500 text-white px-3 py-2 rounded-full shadow-lg">
                                   <CheckCircle2 className="w-4 h-4" />
                                   <span className="text-xs font-bold">Available</span>
@@ -373,35 +492,23 @@ export function BodyguardSearch() {
                           <div className="p-5">
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
-                                <h3 className={`font-semibold mb-1 text-lg transition-colors ${
-                                  availability.available
-                                    ? 'text-neutral-900 group-hover:text-purple-600'
-                                    : 'text-neutral-600'
-                                }`}>
+                                <h3 className={`font-semibold mb-1 text-lg transition-colors ${available
+                                  ? 'text-neutral-900 group-hover:text-purple-600'
+                                  : 'text-neutral-600'
+                                  }`}>
                                   {bodyguard.name}
                                 </h3>
                                 <p className="text-sm text-neutral-500">
                                   {bodyguard.experience} years experience
                                 </p>
                               </div>
-                              {availability.available && (
+                              {available && (
                                 <ChevronRight className="w-5 h-5 text-neutral-400 group-hover:text-neutral-900 group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" />
                               )}
                             </div>
 
-                            {/* Conflict Message or Pricing */}
-                            {!availability.available && availability.conflictDate ? (
-                              <div className="pt-4 border-t border-red-100">
-                                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                                  <p className="text-xs font-semibold text-red-800 mb-1">
-                                    Already booked on {format(availability.conflictDate, 'MMM d, yyyy')}
-                                  </p>
-                                  <p className="text-xs text-red-700">
-                                    Try selecting different dates
-                                  </p>
-                                </div>
-                              </div>
-                            ) : (
+                            {/* Pricing */}
+                            {available ? (
                               <div className="flex items-center justify-between pt-4 border-t border-neutral-100">
                                 <div>
                                   <p className="text-sm text-neutral-500">
@@ -416,6 +523,17 @@ export function BodyguardSearch() {
                                   <span className="text-xs">Elite protection</span>
                                 </div>
                               </div>
+                            ) : (
+                              <div className="pt-4 border-t border-red-100">
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                  <p className="text-xs font-semibold text-red-800 mb-1">
+                                    Not available for selected dates
+                                  </p>
+                                  <p className="text-xs text-red-700">
+                                    Try selecting different dates
+                                  </p>
+                                </div>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -423,6 +541,19 @@ export function BodyguardSearch() {
                     );
                   })}
                 </div>
+
+                {/* Infinite scroll sentinel */}
+                <div ref={sentinelRef} className="h-10 flex items-center justify-center mt-4">
+                  {isLoadingMore && (
+                    <Loader2 className="w-6 h-6 text-purple-600 animate-spin" />
+                  )}
+                </div>
+
+                {!hasMore && results.length > 0 && (
+                  <p className="text-center text-sm text-neutral-500 mt-4">
+                    You've seen all {total} security services
+                  </p>
+                )}
               </>
             )}
           </div>
@@ -514,7 +645,7 @@ export function BodyguardSearch() {
             )}
 
             <Button
-              onClick={() => setShowDatePicker(false)}
+              onClick={handleApplyDates}
               className="w-full h-12"
               disabled={!startDate || (selectedDuration === 'daily' && !endDate)}
             >
