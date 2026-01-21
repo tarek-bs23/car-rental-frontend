@@ -13,6 +13,7 @@ export const endpoints = {
   },
   bookings: {
     history: `${API_VERSION}/booking/history`,
+    details: (id: string) => `${API_VERSION}/booking/${id}`,
   },
   search: {
     vehicles: `${API_VERSION}/search/vehicles`,
