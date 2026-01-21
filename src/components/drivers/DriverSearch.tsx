@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../contexts/AppContext';
 import { TopBar } from '../layout/TopBar';
 import { BottomNav } from '../layout/BottomNav';
 import { Button } from '../ui/button';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { Star, Award, Clock, Calendar, ChevronRight, CheckCircle2, AlertCircle, X } from 'lucide-react';
+import { Star, Award, Clock, Calendar, ChevronRight, CheckCircle2, AlertCircle, X, Loader2 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { motion } from 'motion/react';
 import { Calendar as CalendarComponent } from '../ui/calendar';
@@ -15,18 +15,29 @@ import {
   SheetHeader,
   SheetTitle,
 } from '../ui/sheet';
+import React from 'react';
+import { searchDrivers, PricingType } from '../../lib/driverSearch';
+import type { Driver } from '../../contexts/AppContext';
+import { toast } from 'sonner';
 
 export function DriverSearch() {
   const navigate = useNavigate();
-  const { drivers, selectedCity } = useApp();
+  const { selectedCity } = useApp();
   const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('daily');
-  
+
   // Date/Time state
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [startTime, setStartTime] = useState<string>('10:00');
   const [endTime, setEndTime] = useState<string>('18:00');
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // API state
+  const [results, setResults] = useState<Driver[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [datesApplied, setDatesApplied] = useState(false);
+  const [total, setTotal] = useState(0);
 
   const durations = [
     { id: 'hourly', label: 'Hourly', icon: Clock, description: 'Short trips' },
@@ -39,7 +50,7 @@ export function DriverSearch() {
   const checkDriverAvailability = (driverId: string, start: Date, end: Date) => {
     const unavailableDrivers = ['2', '4'];
     const hasConflict = unavailableDrivers.includes(driverId);
-    
+
     if (hasConflict) {
       const conflictDay = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24) / 2);
       return {
@@ -47,14 +58,14 @@ export function DriverSearch() {
         conflictDate: addDays(start, conflictDay)
       };
     }
-    
+
     return { available: true, conflictDate: null };
   };
 
   // Get booking period based on duration type
   const getBookingPeriod = () => {
     if (!startDate) return null;
-    
+
     switch (selectedDuration) {
       case 'hourly':
         return {
@@ -79,23 +90,96 @@ export function DriverSearch() {
     }
   };
 
-  const filteredDrivers = drivers.filter(d => d.city === selectedCity);
+  // Build ISO dates for API
+  const buildSearchDates = useCallback(() => {
+    const period = getBookingPeriod();
+    if (!period) return null;
+
+    let startISO: string;
+    let endISO: string;
+
+    if (selectedDuration === 'hourly') {
+      const [startHour, startMin] = startTime.split(':').map(Number);
+      const [endHour, endMin] = endTime.split(':').map(Number);
+      const start = new Date(period.start);
+      start.setHours(startHour, startMin, 0, 0);
+      const end = new Date(period.start);
+      end.setHours(endHour, endMin, 0, 0);
+      startISO = start.toISOString();
+      endISO = end.toISOString();
+    } else {
+      startISO = period.start.toISOString();
+      endISO = period.end.toISOString();
+    }
+
+    return { startISO, endISO };
+  }, [getBookingPeriod, selectedDuration, startTime, endTime]);
+
+  // Map duration to pricing type
+  const getPricingType = useCallback(() => {
+    switch (selectedDuration) {
+      case 'hourly': return PricingType.HOURLY;
+      case 'daily': return PricingType.DAILY;
+      case 'weekly': return PricingType.WEEKLY;
+      case 'monthly': return PricingType.MONTHLY;
+    }
+  }, [selectedDuration]);
+
+  const fetchDrivers = useCallback(async () => {
+    const dates = buildSearchDates();
+    if (!selectedCity || !dates) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await searchDrivers({
+        city: selectedCity,
+        startDate: dates.startISO,
+        endDate: dates.endISO,
+        pricingType: getPricingType(),
+        page: 1,
+        limit: 20,
+      });
+
+      setResults(result.drivers);
+      setTotal(result.total ?? result.drivers.length);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load drivers';
+      setError(message);
+      setResults([]);
+      toast.error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedCity, buildSearchDates, getPricingType]);
+
+  const handleApplyDates = () => {
+    if (!startDate || (selectedDuration === 'daily' && !endDate)) return;
+
+    setShowDatePicker(false);
+    setDatesApplied(true);
+    setResults([]);
+    setError(null);
+
+    fetchDrivers();
+  };
 
   // Sort drivers by availability
-  const sortedDrivers = startDate ? [...filteredDrivers].sort((a, b) => {
+  const sortedDrivers = startDate ? [...results].sort((a, b) => {
     const period = getBookingPeriod();
     if (!period) return 0;
-    
+
     const aAvailability = checkDriverAvailability(a.id, period.start, period.end);
     const bAvailability = checkDriverAvailability(b.id, period.start, period.end);
-    
+
     if (aAvailability.available && !bAvailability.available) return -1;
     if (!aAvailability.available && bAvailability.available) return 1;
     return 0;
-  }) : filteredDrivers;
+  }) : results;
 
   // Calculate price based on selected duration
-  const getPrice = (driver: typeof drivers[0]) => {
+  const getPrice = (driver: Driver) => {
     const period = getBookingPeriod();
     if (!period || !startDate) {
       return { amount: driver.pricePerHour, unit: '/hr' };
@@ -124,16 +208,19 @@ export function DriverSearch() {
     setSelectedDuration(newDuration);
     setStartDate(undefined);
     setEndDate(undefined);
+    setDatesApplied(false);
+    setResults([]);
+    setError(null);
     setShowDatePicker(false);
   };
 
   // Format booking period for display
   const formatBookingPeriod = () => {
     if (!startDate) return 'Select dates';
-    
+
     const period = getBookingPeriod();
     if (!period) return 'Select dates';
-    
+
     if (selectedDuration === 'hourly') {
       return `${format(startDate, 'MMM d')} • ${startTime} - ${endTime}`;
     } else if (selectedDuration === 'daily') {
@@ -153,7 +240,7 @@ export function DriverSearch() {
   return (
     <div className="min-h-screen bg-white pb-20">
       <TopBar />
-      
+
       <div className="pt-14">
         {/* Header */}
         <div className="px-6 py-6 border-b border-neutral-100">
@@ -181,23 +268,19 @@ export function DriverSearch() {
                     <button
                       key={duration.id}
                       onClick={() => handleDurationChange(duration.id as any)}
-                      className={`p-3 rounded-xl border-2 transition-all ${
-                        isSelected
-                          ? 'border-green-600 bg-gradient-to-br from-green-50 to-emerald-50 shadow-md'
-                          : 'border-neutral-200 bg-white hover:border-neutral-300 hover:shadow-sm'
-                      }`}
+                      className={`p-3 rounded-xl border-2 transition-all ${isSelected
+                        ? 'border-green-600 bg-gradient-to-br from-green-50 to-emerald-50 shadow-md'
+                        : 'border-neutral-200 bg-white hover:border-neutral-300 hover:shadow-sm'
+                        }`}
                     >
-                      <Icon className={`w-5 h-5 mb-1.5 mx-auto ${
-                        isSelected ? 'text-green-600' : 'text-neutral-500'
-                      }`} />
-                      <p className={`text-xs font-semibold mb-0.5 ${
-                        isSelected ? 'text-neutral-900' : 'text-neutral-700'
-                      }`}>
+                      <Icon className={`w-5 h-5 mb-1.5 mx-auto ${isSelected ? 'text-green-600' : 'text-neutral-500'
+                        }`} />
+                      <p className={`text-xs font-semibold mb-0.5 ${isSelected ? 'text-neutral-900' : 'text-neutral-700'
+                        }`}>
                         {duration.label}
                       </p>
-                      <p className={`text-[10px] ${
-                        isSelected ? 'text-neutral-600' : 'text-neutral-500'
-                      }`}>
+                      <p className={`text-[10px] ${isSelected ? 'text-neutral-600' : 'text-neutral-500'
+                        }`}>
                         {duration.description}
                       </p>
                     </button>
@@ -208,20 +291,17 @@ export function DriverSearch() {
               {/* Date Selection Button */}
               <button
                 onClick={() => setShowDatePicker(true)}
-                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                  hasSelectedDates
-                    ? 'border-green-600 bg-gradient-to-br from-green-50 to-emerald-50'
-                    : 'border-neutral-300 bg-white hover:border-green-600 hover:shadow-md'
-                }`}
+                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${hasSelectedDates
+                  ? 'border-green-600 bg-gradient-to-br from-green-50 to-emerald-50'
+                  : 'border-neutral-300 bg-white hover:border-green-600 hover:shadow-md'
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                      hasSelectedDates ? 'bg-green-600' : 'bg-neutral-100'
-                    }`}>
-                      <Calendar className={`w-6 h-6 ${
-                        hasSelectedDates ? 'text-white' : 'text-neutral-500'
-                      }`} />
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${hasSelectedDates ? 'bg-green-600' : 'bg-neutral-100'
+                      }`}>
+                      <Calendar className={`w-6 h-6 ${hasSelectedDates ? 'text-white' : 'text-neutral-500'
+                        }`} />
                     </div>
                     <div>
                       <p className="text-xs text-neutral-600 font-medium mb-0.5">
@@ -230,9 +310,8 @@ export function DriverSearch() {
                         {selectedDuration === 'weekly' && 'Select Start Date (7 days)'}
                         {selectedDuration === 'monthly' && 'Select Start Date (30 days)'}
                       </p>
-                      <p className={`font-semibold ${
-                        hasSelectedDates ? 'text-neutral-900' : 'text-neutral-500'
-                      }`}>
+                      <p className={`font-semibold ${hasSelectedDates ? 'text-neutral-900' : 'text-neutral-500'
+                        }`}>
                         {formatBookingPeriod()}
                       </p>
                     </div>
@@ -247,6 +326,9 @@ export function DriverSearch() {
                   onClick={() => {
                     setStartDate(undefined);
                     setEndDate(undefined);
+                    setDatesApplied(false);
+                    setResults([]);
+                    setError(null);
                   }}
                   className="mt-2 text-sm text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
                 >
@@ -274,17 +356,43 @@ export function DriverSearch() {
                   Choose your service duration and dates above to see available drivers in {selectedCity}
                 </p>
               </div>
+            ) : isLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-4">
+                <Loader2 className="w-10 h-10 text-green-600 animate-spin" />
+                <p className="text-neutral-600">Loading drivers...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-16">
+                <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <AlertCircle className="w-12 h-12 text-red-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-neutral-900 mb-2">Failed to Load</h3>
+                <p className="text-neutral-600 mb-4">{error}</p>
+                <Button onClick={fetchDrivers} variant="outline">
+                  Try Again
+                </Button>
+              </div>
+            ) : sortedDrivers.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-24 h-24 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Calendar className="w-12 h-12 text-neutral-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-neutral-900 mb-2">No Drivers Found</h3>
+                <p className="text-neutral-600 mb-6 max-w-md mx-auto">
+                  Try adjusting your dates to find available drivers.
+                </p>
+              </div>
             ) : (
               // Show drivers with availability
               <>
                 <div className="mb-4 flex items-center justify-between">
                   <p className="text-sm text-neutral-600">
-                    <span className="font-semibold text-neutral-900">{sortedDrivers.length}</span> drivers found
+                    <span className="font-semibold text-neutral-900">{total || sortedDrivers.length}</span> drivers found
                   </p>
                   {(() => {
                     const period = getBookingPeriod();
                     if (!period) return null;
-                    const availableCount = sortedDrivers.filter(d => 
+                    const availableCount = sortedDrivers.filter(d =>
                       checkDriverAvailability(d.id, period.start, period.end).available
                     ).length;
                     return (
@@ -297,13 +405,13 @@ export function DriverSearch() {
                     );
                   })()}
                 </div>
-                
+
                 <div className="space-y-4">
                   {sortedDrivers.map((driver, index) => {
                     const price = getPrice(driver);
                     const period = getBookingPeriod();
                     const availability = period ? checkDriverAvailability(driver.id, period.start, period.end) : { available: true, conflictDate: null };
-                    
+
                     return (
                       <motion.button
                         key={driver.id}
@@ -318,21 +426,19 @@ export function DriverSearch() {
                         className="w-full group"
                         disabled={!availability.available}
                       >
-                        <div className={`bg-white border-2 rounded-2xl overflow-hidden transition-all duration-300 ${
-                          availability.available
-                            ? 'border-neutral-200 hover:shadow-xl hover:border-neutral-300'
-                            : 'border-red-200 opacity-75'
-                        }`}>
+                        <div className={`bg-white border-2 rounded-2xl overflow-hidden transition-all duration-300 ${availability.available
+                          ? 'border-neutral-200 hover:shadow-xl hover:border-neutral-300'
+                          : 'border-red-200 opacity-75'
+                          }`}>
                           {/* Image Section */}
                           <div className="relative aspect-[16/10] overflow-hidden bg-neutral-100">
                             <ImageWithFallback
                               src={driver.image}
                               alt={driver.name}
-                              className={`w-full h-full object-cover transition-transform duration-500 ${
-                                availability.available ? 'group-hover:scale-105' : 'grayscale'
-                              }`}
+                              className={`w-full h-full object-cover transition-transform duration-500 ${availability.available ? 'group-hover:scale-105' : 'grayscale'
+                                }`}
                             />
-                            
+
                             {/* Availability Badge - Top Priority */}
                             <div className="absolute top-3 left-3">
                               {availability.available ? (
@@ -373,11 +479,10 @@ export function DriverSearch() {
                           <div className="p-5">
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
-                                <h3 className={`font-semibold mb-1 text-lg transition-colors ${
-                                  availability.available
-                                    ? 'text-neutral-900 group-hover:text-green-600'
-                                    : 'text-neutral-600'
-                                }`}>
+                                <h3 className={`font-semibold mb-1 text-lg transition-colors ${availability.available
+                                  ? 'text-neutral-900 group-hover:text-green-600'
+                                  : 'text-neutral-600'
+                                  }`}>
                                   {driver.name}
                                 </h3>
                                 <p className="text-sm text-neutral-500">
@@ -514,7 +619,7 @@ export function DriverSearch() {
             )}
 
             <Button
-              onClick={() => setShowDatePicker(false)}
+              onClick={handleApplyDates}
               className="w-full h-12"
               disabled={!startDate || (selectedDuration === 'daily' && !endDate)}
             >

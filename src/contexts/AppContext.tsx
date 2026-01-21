@@ -49,6 +49,9 @@ export interface Driver {
   experience: number;
   compatibleVehicles: string[];
   pricePerHour: number;
+  pricePerDay?: number;
+  pricePerWeek?: number;
+  pricePerMonth?: number;
   rating: number;
   reviewCount: number;
   city: string;
@@ -58,6 +61,9 @@ export interface Driver {
     expiryDate: string;
     issuingState: string;
   };
+  availabilityStatus?: string;
+  email?: string;
+  phoneNumber?: string;
 }
 
 export interface Bodyguard {

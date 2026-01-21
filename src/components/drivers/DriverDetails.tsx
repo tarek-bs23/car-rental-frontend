@@ -1,20 +1,22 @@
 import { Avatar } from '../ui/avatar';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useApp } from '../../contexts/AppContext';
+import { useApp, type Driver } from '../../contexts/AppContext';
 import { Button } from '../ui/button';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { 
-  ChevronLeft, 
-  Star, 
+import {
+  ChevronLeft,
+  Star,
   Award,
   Shield,
   Check,
   Clock,
   MapPin,
   Phone,
-  Mail
+  Mail,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import {
@@ -25,6 +27,8 @@ import {
   SheetDescription,
 } from '../ui/sheet';
 import { Progress } from '../ui/progress';
+import React from 'react';
+import { getDriverDetails } from '../../lib/driverSearch';
 
 interface Review {
   id: string;
@@ -36,15 +40,45 @@ interface Review {
   helpful: number;
 }
 
+
 export function DriverDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { drivers, cart, addToCart, bookings } = useApp();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [apiDriver, setApiDriver] = useState<Driver | null>(null);
   const [showReviews, setShowReviews] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'halfday' | 'fullday' | 'weekly' | 'monthly'>('hourly');
 
-  const driver = drivers.find(d => d.id === id);
-  
+  const contextDriver = drivers.find(d => d.id === id);
+  const driver = apiDriver || contextDriver;
+
+  React.useEffect(() => {
+    if (!id || contextDriver) return;
+
+    let cancelled = false;
+    setIsLoading(true);
+    setError(null);
+
+    getDriverDetails(id)
+      .then((data) => {
+        if (cancelled) return;
+        setApiDriver(data);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : 'Failed to load driver');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, contextDriver]);
+
   // Check if vehicle is in cart OR user has active vehicle booking for bundle discount
   const hasVehicleInCart = cart.some(item => item.type === 'vehicle');
   const hasActiveVehicleBooking = bookings.some(
@@ -118,6 +152,28 @@ export function DriverDetails() {
     { stars: 1, count: 0, percentage: 0 },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-12 h-12 text-green-600 animate-spin" />
+        <p className="text-neutral-600">Loading driver details...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6">
+        <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center">
+          <AlertCircle className="w-12 h-12 text-red-500" />
+        </div>
+        <h3 className="text-xl font-semibold text-neutral-900">Failed to Load</h3>
+        <p className="text-neutral-600 text-center">{error}</p>
+        <Button onClick={() => navigate(-1)} variant="outline">Go Back</Button>
+      </div>
+    );
+  }
+
   if (!driver) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -156,7 +212,7 @@ export function DriverDetails() {
                 <Award className="w-5 h-5" />
               </div>
             </div>
-            
+
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">{driver.name}</h1>
               <div className="flex items-center gap-2 mb-4">
@@ -165,8 +221,8 @@ export function DriverDetails() {
                   Verified Professional
                 </Badge>
               </div>
-              
-              <button 
+
+              <button
                 onClick={() => setShowReviews(true)}
                 className="inline-flex items-center gap-2 bg-gradient-to-br from-yellow-50 to-orange-50 px-4 py-2.5 rounded-xl border border-yellow-200 hover:border-yellow-300 transition-all hover:shadow-md"
               >
@@ -176,7 +232,7 @@ export function DriverDetails() {
               </button>
             </div>
           </div>
-          
+
           {/* Premium Stats Row */}
           <div className="grid grid-cols-3 gap-4 pt-6 border-t border-gray-100">
             <div className="text-center">
@@ -186,7 +242,7 @@ export function DriverDetails() {
               <p className="text-2xl font-bold text-gray-900 mb-1">{driver.experience}</p>
               <p className="text-sm text-gray-500">Years Experience</p>
             </div>
-            
+
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-50 to-yellow-100 mb-3">
                 <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
@@ -194,7 +250,7 @@ export function DriverDetails() {
               <p className="text-2xl font-bold text-gray-900 mb-1">{driver.rating}</p>
               <p className="text-sm text-gray-500">Average Rating</p>
             </div>
-            
+
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 mb-3">
                 <Award className="w-6 h-6 text-green-600" />
@@ -321,11 +377,10 @@ export function DriverDetails() {
           <div className="space-y-3">
             <button
               onClick={() => setSelectedDuration('hourly')}
-              className={`w-full p-5 rounded-xl border-2 transition-all text-left ${
-                selectedDuration === 'hourly'
-                  ? 'border-green-600 bg-green-50 shadow-lg shadow-green-100'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
-              }`}
+              className={`w-full p-5 rounded-xl border-2 transition-all text-left ${selectedDuration === 'hourly'
+                ? 'border-green-600 bg-green-50 shadow-lg shadow-green-100'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -348,14 +403,13 @@ export function DriverDetails() {
                 </div>
               )}
             </button>
-            
+
             <button
               onClick={() => setSelectedDuration('halfday')}
-              className={`w-full p-5 rounded-xl border-2 transition-all text-left ${
-                selectedDuration === 'halfday'
-                  ? 'border-green-600 bg-green-50 shadow-lg shadow-green-100'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
-              }`}
+              className={`w-full p-5 rounded-xl border-2 transition-all text-left ${selectedDuration === 'halfday'
+                ? 'border-green-600 bg-green-50 shadow-lg shadow-green-100'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span className={`text-sm font-medium ${selectedDuration === 'halfday' ? 'text-green-900' : 'text-gray-600'}`}>
@@ -378,11 +432,10 @@ export function DriverDetails() {
 
             <button
               onClick={() => setSelectedDuration('fullday')}
-              className={`w-full p-5 rounded-xl border-2 transition-all text-left relative overflow-hidden ${
-                selectedDuration === 'fullday'
-                  ? 'border-green-600 bg-gradient-to-br from-green-600 to-green-700 shadow-lg'
-                  : 'border-gray-200 bg-gradient-to-br from-green-50 to-emerald-50 hover:border-green-300'
-              }`}
+              className={`w-full p-5 rounded-xl border-2 transition-all text-left relative overflow-hidden ${selectedDuration === 'fullday'
+                ? 'border-green-600 bg-gradient-to-br from-green-600 to-green-700 shadow-lg'
+                : 'border-gray-200 bg-gradient-to-br from-green-50 to-emerald-50 hover:border-green-300'
+                }`}
             >
               <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-bl-lg">
                 BEST VALUE
@@ -413,11 +466,10 @@ export function DriverDetails() {
 
             <button
               onClick={() => setSelectedDuration('weekly')}
-              className={`w-full p-5 rounded-xl border-2 transition-all text-left relative overflow-hidden ${
-                selectedDuration === 'weekly'
-                  ? 'border-green-600 bg-green-50 shadow-lg shadow-green-100'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
-              }`}
+              className={`w-full p-5 rounded-xl border-2 transition-all text-left relative overflow-hidden ${selectedDuration === 'weekly'
+                ? 'border-green-600 bg-green-50 shadow-lg shadow-green-100'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span className={`text-sm font-medium ${selectedDuration === 'weekly' ? 'text-green-900' : 'text-gray-600'}`}>
@@ -445,11 +497,10 @@ export function DriverDetails() {
 
             <button
               onClick={() => setSelectedDuration('monthly')}
-              className={`w-full p-5 rounded-xl border-2 transition-all text-left relative overflow-hidden ${
-                selectedDuration === 'monthly'
-                  ? 'border-green-600 bg-gradient-to-br from-green-600 to-green-700 shadow-lg'
-                  : 'border-gray-200 bg-gradient-to-br from-green-50 to-emerald-50 hover:border-green-300'
-              }`}
+              className={`w-full p-5 rounded-xl border-2 transition-all text-left relative overflow-hidden ${selectedDuration === 'monthly'
+                ? 'border-green-600 bg-gradient-to-br from-green-600 to-green-700 shadow-lg'
+                : 'border-gray-200 bg-gradient-to-br from-green-50 to-emerald-50 hover:border-green-300'
+                }`}
             >
               <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-bl-lg">
                 PREMIUM
@@ -498,15 +549,15 @@ export function DriverDetails() {
                 <div className="text-5xl font-bold text-gray-900 mb-1">{driver.rating}</div>
                 <div className="flex items-center justify-center gap-1 mb-2">
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <Star 
-                      key={star} 
-                      className={`w-4 h-4 ${star <= Math.floor(driver.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+                    <Star
+                      key={star}
+                      className={`w-4 h-4 ${star <= Math.floor(driver.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
                     />
                   ))}
                 </div>
                 <div className="text-sm text-gray-600">{driver.reviewCount} reviews</div>
               </div>
-              
+
               <div className="flex-1 space-y-2">
                 {ratingBreakdown.map((item) => (
                   <div key={item.stars} className="flex items-center gap-3">
@@ -538,9 +589,9 @@ export function DriverDetails() {
                     </div>
                     <div className="flex items-center gap-1 mb-2">
                       {[1, 2, 3, 4, 5].map((star) => (
-                        <Star 
-                          key={star} 
-                          className={`w-4 h-4 ${star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+                        <Star
+                          key={star}
+                          className={`w-4 h-4 ${star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
                         />
                       ))}
                     </div>
@@ -570,7 +621,7 @@ export function DriverDetails() {
               </p>
             </div>
           )}
-          
+
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <p className="text-xs text-gray-500 font-medium mb-1">
