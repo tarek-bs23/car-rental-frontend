@@ -1,7 +1,7 @@
 import { Avatar } from '../ui/avatar';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp, type Driver } from '../../contexts/AppContext';
 import { Button } from '../ui/button';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
@@ -29,6 +29,8 @@ import {
 import { Progress } from '../ui/progress';
 import React from 'react';
 import { getDriverDetails } from '../../lib/driverSearch';
+import { apiJson } from '../../lib/api';
+import { endpoints } from '../../lib/endpoints';
 
 interface Review {
   id: string;
@@ -44,17 +46,41 @@ interface Review {
 export function DriverDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { drivers, cart, addToCart, bookings } = useApp();
+  const { drivers, cart, addToCart, bookings, selectedCity } = useApp();
+  const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [apiDriver, setApiDriver] = useState<Driver | null>(null);
   const [showReviews, setShowReviews] = useState(false);
-  const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'halfday' | 'fullday' | 'weekly' | 'monthly'>('hourly');
+  const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>(
+    (searchParams.get('duration') as 'hourly' | 'daily' | 'weekly' | 'monthly') || 'daily'
+  );
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+
+  const urlDuration = searchParams.get('duration') as 'hourly' | 'halfday' | 'fullday' | 'weekly' | 'monthly' | null;
+  const urlStartDate = searchParams.get('startDate');
+  const urlEndDate = searchParams.get('endDate');
+  const urlStartTime = searchParams.get('startTime') || '09:00';
+  const urlEndTime = searchParams.get('endTime') || '17:00';
+
+  interface AddToCartResponse {
+    statusCode: number;
+    message: string;
+    data: unknown;
+  }
 
   const contextDriver = drivers.find(d => d.id === id);
   const driver = apiDriver || contextDriver;
 
-  React.useEffect(() => {
+  useEffect(() => {
+    if (!urlDuration) return;
+
+    if (['hourly', 'halfday', 'fullday', 'weekly', 'monthly'].includes(urlDuration)) {
+      setSelectedDuration(urlDuration as typeof selectedDuration);
+    }
+  }, [urlDuration]);
+
+  useEffect(() => {
     if (!id || contextDriver) return;
 
     let cancelled = false;
@@ -650,22 +676,63 @@ export function DriverDetails() {
                 </div>
               )}
               <Button
-                onClick={() => {
-                  addToCart({
-                    type: 'driver',
-                    serviceId: driver.id,
-                    duration: selectedDuration,
-                    startDate: new Date(),
-                    endDate: null,
-                    startTime: '09:00',
-                    endTime: '17:00',
-                  });
-                  toast.success('Driver added to cart!');
-                  navigate('/booking/cart');
+                onClick={async () => {
+                  if (!id) return;
+
+                  const pricingType =
+                    selectedDuration === 'hourly'
+                      ? 'HOURLY'
+                      : selectedDuration === 'weekly'
+                        ? 'WEEKLY'
+                        : selectedDuration === 'monthly'
+                          ? 'MONTHLY'
+                          : 'DAILY';
+
+                  const start = urlStartDate || new Date().toISOString();
+                  const end = urlEndDate || start;
+
+                  setIsAddingToCart(true);
+                  try {
+                    const response = await apiJson<AddToCartResponse>({
+                      path: endpoints.cart.items,
+                      method: 'POST',
+                      body: {
+                        itemType: 'DRIVER',
+                        city: selectedCity,
+                        startDate: start,
+                        endDate: end,
+                        pricingType,
+                        driverId: id,
+                      },
+                    });
+
+                    const startDateObj = urlStartDate ? new Date(urlStartDate) : new Date(start);
+                    const endDateObj = urlEndDate ? new Date(urlEndDate) : null;
+
+                    addToCart({
+                      type: 'driver',
+                      serviceId: driver.id,
+                      duration: selectedDuration,
+                      startDate: startDateObj,
+                      endDate: endDateObj,
+                      startTime: urlStartTime,
+                      endTime: urlEndTime,
+                    });
+
+                    toast.success(response.message || 'Driver added to cart!');
+                    navigate('/booking/cart');
+                  } catch (error) {
+                    const message =
+                      error instanceof Error ? error.message : 'Failed to add to cart';
+                    toast.error(message);
+                  } finally {
+                    setIsAddingToCart(false);
+                  }
                 }}
-                className="h-14 px-10 text-lg bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg shadow-green-600/30"
+                disabled={isAddingToCart}
+                className="h-14 px-10 text-lg bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg shadow-green-600/30 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Add to Cart
+                {isAddingToCart ? 'Adding...' : 'Add to Cart'}
               </Button>
             </div>
           </div>
