@@ -14,6 +14,8 @@ export const endpoints = {
   bookings: {
     history: `${API_VERSION}/booking/history`,
     details: (id: string) => `${API_VERSION}/booking/${id}`,
+    estimatedRefund: (id: string) => `${API_VERSION}/booking/${id}/estimated-refund`,
+    cancel: (id: string) => `${API_VERSION}/booking/${id}/cancel`,
   },
   search: {
     vehicles: `${API_VERSION}/search/vehicles`,
