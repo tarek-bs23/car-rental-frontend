@@ -190,7 +190,7 @@ export function BookingSummary() {
             </div>
             <div className="flex gap-3">
               <ImageWithFallback
-                src={driver?.image || 'https://via.placeholder.com/150'}
+                src={driver?.image || driverItem.thumbnail || 'https://via.placeholder.com/150'}
                 alt={driver?.name || driverItem.displayName || 'Driver'}
                 className="w-16 h-16 object-cover rounded-full"
               />
@@ -247,7 +247,7 @@ export function BookingSummary() {
             </div>
             <div className="flex gap-3">
               <ImageWithFallback
-                src={bodyguard?.image || 'https://via.placeholder.com/150'}
+                src={bodyguard?.image || bodyguardItem.thumbnail || 'https://via.placeholder.com/150'}
                 alt={bodyguard?.name || bodyguardItem.displayName || 'Security'}
                 className="w-16 h-16 object-cover rounded-full"
               />

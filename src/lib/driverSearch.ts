@@ -14,6 +14,7 @@ interface ApiDriver {
   lastName: string
   yearsOfExperience: number
   compatibleVehicleTypes: string[]
+  profilePhoto?: string
   pricing: {
     HOURLY?: ApiPricing
     DAILY?: ApiPricing
@@ -89,7 +90,7 @@ function mapApiDriverBase(apiDriver: ApiDriver): Driver {
   return {
     id: apiDriver.id,
     name: fullName || apiDriver.firstName || apiDriver.lastName || 'Driver',
-    image: '',
+    image: apiDriver.profilePhoto || '',
     experience: apiDriver.yearsOfExperience,
     compatibleVehicles: apiDriver.compatibleVehicleTypes || [],
     pricePerHour: apiDriver.pricing?.HOURLY?.amount || 0,

@@ -214,7 +214,7 @@ export function ServiceCart() {
             <ServiceCartItem
               type="driver"
               serviceName={driver?.name || driverItem.displayName || 'Driver'}
-              serviceImage={driver?.image || 'https://via.placeholder.com/150'}
+              serviceImage={driver?.image || driverItem.thumbnail || 'https://via.placeholder.com/150'}
               serviceDetails={driver ? `${driver.experience} years experience` : driverItem.serviceDetails || 'Professional driver'}
               basePricePerHour={driver?.pricePerHour || driverItem.unitPrice}
               duration={driverItem.duration}
@@ -244,7 +244,7 @@ export function ServiceCart() {
             <ServiceCartItem
               type="bodyguard"
               serviceName={bodyguard?.name || bodyguardItem.displayName || 'Security'}
-              serviceImage={bodyguard?.image || 'https://via.placeholder.com/150'}
+              serviceImage={bodyguard?.image || bodyguardItem.thumbnail || 'https://via.placeholder.com/150'}
               serviceDetails={bodyguard ? `${bodyguard.securityLevel} • ${bodyguard.experience}y exp` : bodyguardItem.serviceDetails || 'Security service'}
               basePricePerHour={bodyguard?.pricePerHour || bodyguardItem.unitPrice}
               duration={bodyguardItem.duration}

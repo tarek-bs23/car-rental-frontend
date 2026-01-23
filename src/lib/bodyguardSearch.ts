@@ -14,6 +14,7 @@ interface ApiBodyguard {
   lastName: string
   yearsOfExperience: number
   securityLevel: string
+  profilePhoto?: string
   pricing?: {
     HOURLY?: ApiPricing
     DAILY?: ApiPricing
@@ -98,7 +99,7 @@ function mapApiBodyguard(apiBodyguard: ApiBodyguard): Bodyguard {
   return {
     id: apiBodyguard.id,
     name: fullName || apiBodyguard.firstName || apiBodyguard.lastName || 'Bodyguard',
-    image: '',
+    image: apiBodyguard.profilePhoto || '',
     experience: apiBodyguard.yearsOfExperience,
     securityLevel: apiBodyguard.securityLevel,
     teamSize: 1,
