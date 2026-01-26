@@ -61,10 +61,11 @@ interface ApiJsonOptions {
   method?: string
   body?: unknown
   skipAuth?: boolean
+  token?: string
 }
 
 export async function apiJson<TResponse>(options: ApiJsonOptions): Promise<TResponse> {
-  const { path, method = 'GET', body, skipAuth = false } = options
+  const { path, method = 'GET', body, skipAuth = false, token } = options
 
   const baseUrl = getApiBaseUrl()
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
@@ -76,9 +77,9 @@ export async function apiJson<TResponse>(options: ApiJsonOptions): Promise<TResp
   }
 
   if (!skipAuth) {
-    const token = getAccessToken()
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
+    const authToken = token || getAccessToken()
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`
     }
   }
 
@@ -96,7 +97,7 @@ export async function apiJson<TResponse>(options: ApiJsonOptions): Promise<TResp
   if (!response.ok) {
     if (response.status === 401) {
       clearAuthStorage()
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && window.location.pathname !== '/launch') {
         window.location.href = '/launch'
       }
       throw new Error('Unauthorized')

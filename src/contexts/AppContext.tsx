@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode, useEffect, useMemo, useCallback } from 'react'
+import React, { createContext, useContext, useState, type ReactNode, useEffect, useMemo, useCallback } from 'react'
 import { mockVehicles, mockDrivers, mockBodyguards } from '../data/mockData'
 import { apiJson } from '../lib/api'
 import { endpoints } from '../lib/endpoints'
@@ -292,6 +292,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [accessToken])
 
   const login = useCallback((token: string, userData: User) => {
+    setLocalStorage('accessToken', token)
+    setLocalStorage('user', JSON.stringify(userData))
     setAccessToken(token)
     setUser(userData)
   }, [])
@@ -411,8 +413,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const loadCart = useCallback(async () => {
-    if (!isAuthenticated) {
+  const loadCart = useCallback(async (token: string) => {
+    if (!token) {
       setCart([])
       return
     }
@@ -420,6 +422,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const response = await apiJson<BackendCartResponse>({
         path: endpoints.cart.root,
+        token,
       })
 
       let cartItems: BackendCartItem[] = []
@@ -437,15 +440,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error('Failed to load cart:', error)
       setCart([])
     }
-  }, [isAuthenticated, transformBackendCartItem])
+  }, [transformBackendCartItem])
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadCart();
+    if (isAuthenticated && accessToken) {
+      loadCart(accessToken)
     } else {
-      setCart([]);
+      setCart([])
     }
-  }, [isAuthenticated, loadCart]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, accessToken])
 
   const addToCart = useCallback((item: CartItem) => {
     setCart(curr => {

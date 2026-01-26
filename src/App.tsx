@@ -1,4 +1,4 @@
-import React, { useState, useCallback, type PropsWithChildren } from 'react'
+import React, { useState, useCallback, useMemo, type PropsWithChildren } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AppProvider, useApp } from './contexts/AppContext'
 import { Toaster } from './components/ui/sonner'
@@ -48,19 +48,33 @@ function RequireAuth({ children }: PropsWithChildren) {
   return <>{children}</>
 }
 
+function PublicRoute({ children }: PropsWithChildren) {
+  const { isAuthenticated } = useApp()
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />
+  }
+
+  return <>{children}</>
+}
+
 function AppRoutes() {
   const { isAuthenticated } = useApp()
 
+  const defaultRedirect = useMemo(() => {
+    return isAuthenticated ? "/" : "/launch"
+  }, [isAuthenticated])
+
   return (
     <Routes>
-      <Route path="/launch" element={isAuthenticated ? <Navigate to="/" replace /> : <AppLaunch />} />
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/register" element={isAuthenticated ? <Navigate to="/" replace /> : <Register />} />
-      <Route path="/verify-email" element={isAuthenticated ? <Navigate to="/" replace /> : <VerifyEmail />} />
-      <Route path="/welcome" element={isAuthenticated ? <Navigate to="/" replace /> : <Welcome />} />
-      <Route path="/forgot-password" element={isAuthenticated ? <Navigate to="/" replace /> : <ForgotPassword />} />
-      <Route path="/verify-otp" element={isAuthenticated ? <Navigate to="/" replace /> : <VerifyOtp />} />
-      <Route path="/reset-password" element={isAuthenticated ? <Navigate to="/" replace /> : <ResetPassword />} />
+      <Route path="/launch" element={<PublicRoute><AppLaunch /></PublicRoute>} />
+      <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+      <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+      <Route path="/verify-email" element={<PublicRoute><VerifyEmail /></PublicRoute>} />
+      <Route path="/welcome" element={<PublicRoute><Welcome /></PublicRoute>} />
+      <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+      <Route path="/verify-otp" element={<PublicRoute><VerifyOtp /></PublicRoute>} />
+      <Route path="/reset-password" element={<PublicRoute><ResetPassword /></PublicRoute>} />
 
       <Route path="/" element={<RequireAuth><Services /></RequireAuth>} />
 
@@ -89,7 +103,7 @@ function AppRoutes() {
       <Route path="/account/profile" element={<RequireAuth><EditProfile /></RequireAuth>} />
       <Route path="/account/payments" element={<RequireAuth><PaymentHistory /></RequireAuth>} />
 
-      <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/launch"} replace />} />
+      <Route path="*" element={<Navigate to={defaultRedirect} replace />} />
     </Routes>
   )
 }
