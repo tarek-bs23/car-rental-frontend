@@ -1,64 +1,64 @@
-import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useApp } from '../../contexts/AppContext';
-import { Button } from '../ui/button';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { ChevronLeft, Plus, Search, X, ShoppingCart } from 'lucide-react';
+import { useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useApp } from '../../contexts/AppContext'
+import { Button } from '../ui/button'
+import { ImageWithFallback } from '../figma/ImageWithFallback'
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left'
+import Plus from 'lucide-react/dist/esm/icons/plus'
+import Search from 'lucide-react/dist/esm/icons/search'
+import X from 'lucide-react/dist/esm/icons/x'
+import ShoppingCart from 'lucide-react/dist/esm/icons/shopping-cart'
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from '../ui/sheet';
-import { Input } from '../ui/input';
-import { ServiceCartItem } from './ServiceCartItem';
+} from '../ui/sheet'
+import { Input } from '../ui/input'
+import { ServiceCartItem } from './ServiceCartItem'
 
 export function AddOnsSelection() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const vehicleId = searchParams.get('vehicleId');
-  const { vehicles, drivers, bodyguards } = useApp();
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const vehicleId = searchParams.get('vehicleId')
+  const { vehicles, drivers, bodyguards } = useApp()
 
-  // Vehicle state
   const [vehicleDuration, setVehicleDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>(
     (searchParams.get('duration') as any) || 'daily'
-  );
+  )
   const [vehicleStartDate, setVehicleStartDate] = useState<Date>(
     searchParams.get('startDate') ? new Date(searchParams.get('startDate')!) : new Date()
-  );
+  )
   const [vehicleEndDate, setVehicleEndDate] = useState<Date | null>(
     searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : null
-  );
-  const [vehicleStartTime, setVehicleStartTime] = useState(searchParams.get('startTime') || '09:00');
-  const [vehicleEndTime, setVehicleEndTime] = useState(searchParams.get('endTime') || '17:00');
+  )
+  const [vehicleStartTime, setVehicleStartTime] = useState(searchParams.get('startTime') || '09:00')
+  const [vehicleEndTime, setVehicleEndTime] = useState(searchParams.get('endTime') || '17:00')
 
-  // Driver state
-  const [addDriver, setAddDriver] = useState(false);
-  const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
-  const [driverDuration, setDriverDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('daily');
-  const [driverStartDate, setDriverStartDate] = useState<Date>(new Date());
-  const [driverEndDate, setDriverEndDate] = useState<Date | null>(null);
-  const [driverStartTime, setDriverStartTime] = useState('09:00');
-  const [driverEndTime, setDriverEndTime] = useState('17:00');
+  const [addDriver, setAddDriver] = useState(false)
+  const [selectedDriver, setSelectedDriver] = useState<string | null>(null)
+  const [driverDuration, setDriverDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('daily')
+  const [driverStartDate, setDriverStartDate] = useState<Date>(new Date())
+  const [driverEndDate, setDriverEndDate] = useState<Date | null>(null)
+  const [driverStartTime, setDriverStartTime] = useState('09:00')
+  const [driverEndTime, setDriverEndTime] = useState('17:00')
 
-  // Bodyguard state
-  const [addBodyguard, setAddBodyguard] = useState(false);
-  const [selectedBodyguard, setSelectedBodyguard] = useState<string | null>(null);
-  const [bodyguardDuration, setBodyguardDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('daily');
-  const [bodyguardStartDate, setBodyguardStartDate] = useState<Date>(new Date());
-  const [bodyguardEndDate, setBodyguardEndDate] = useState<Date | null>(null);
-  const [bodyguardStartTime, setBodyguardStartTime] = useState('09:00');
-  const [bodyguardEndTime, setBodyguardEndTime] = useState('17:00');
+  const [addBodyguard, setAddBodyguard] = useState(false)
+  const [selectedBodyguard, setSelectedBodyguard] = useState<string | null>(null)
+  const [bodyguardDuration, setBodyguardDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('daily')
+  const [bodyguardStartDate, setBodyguardStartDate] = useState<Date>(new Date())
+  const [bodyguardEndDate, setBodyguardEndDate] = useState<Date | null>(null)
+  const [bodyguardStartTime, setBodyguardStartTime] = useState('09:00')
+  const [bodyguardEndTime, setBodyguardEndTime] = useState('17:00')
 
-  // Modal states
-  const [showDriverSelector, setShowDriverSelector] = useState(false);
-  const [showBodyguardSelector, setShowBodyguardSelector] = useState(false);
-  const [driverSearchQuery, setDriverSearchQuery] = useState('');
-  const [bodyguardSearchQuery, setBodyguardSearchQuery] = useState('');
+  const [showDriverSelector, setShowDriverSelector] = useState(false)
+  const [showBodyguardSelector, setShowBodyguardSelector] = useState(false)
+  const [driverSearchQuery, setDriverSearchQuery] = useState('')
+  const [bodyguardSearchQuery, setBodyguardSearchQuery] = useState('')
 
-  const vehicle = vehicleId ? vehicles.find(v => v.id === vehicleId) : null;
-  const driver = selectedDriver ? drivers.find(d => d.id === selectedDriver) : null;
-  const bodyguard = selectedBodyguard ? bodyguards.find(b => b.id === selectedBodyguard) : null;
+  const vehicle = vehicleId ? vehicles.find(v => v.id === vehicleId) : null
+  const driver = selectedDriver ? drivers.find(d => d.id === selectedDriver) : null
+  const bodyguard = selectedBodyguard ? bodyguards.find(b => b.id === selectedBodyguard) : null
 
   if (!vehicle) {
     return (
@@ -68,94 +68,88 @@ export function AddOnsSelection() {
           <Button onClick={() => navigate('/vehicles')}>Back to Vehicles</Button>
         </div>
       </div>
-    );
+    )
   }
 
-  // Calculate total price
-  const calculateVehiclePrice = () => {
-    if (!vehicle) return 0;
+  function calculateVehiclePrice() {
+    if (!vehicle) return 0
     if (vehicleDuration === 'hourly') {
-      const hours = 8; // simplified
-      return Math.ceil((vehicle.pricePerDay / 24) * hours);
+      const hours = 8
+      return Math.ceil((vehicle.pricePerDay / 24) * hours)
     } else if (vehicleDuration === 'daily') {
-      return vehicle.pricePerDay * 3; // simplified
+      return vehicle.pricePerDay * 3
     } else if (vehicleDuration === 'weekly') {
-      return vehicle.pricePerDay * 7;
+      return vehicle.pricePerDay * 7
     } else {
-      return vehicle.pricePerDay * 30;
+      return vehicle.pricePerDay * 30
     }
-  };
+  }
 
-  const calculateDriverPrice = () => {
-    if (!driver) return 0;
-    if (driverDuration === 'hourly') return driver.pricePerHour * 8;
-    else if (driverDuration === 'daily') return driver.pricePerHour * 24 * 3;
-    else if (driverDuration === 'weekly') return driver.pricePerHour * 24 * 7;
-    else return driver.pricePerHour * 24 * 30;
-  };
+  function calculateDriverPrice() {
+    if (!driver) return 0
+    if (driverDuration === 'hourly') return driver.pricePerHour * 8
+    else if (driverDuration === 'daily') return driver.pricePerHour * 24 * 3
+    else if (driverDuration === 'weekly') return driver.pricePerHour * 24 * 7
+    else return driver.pricePerHour * 24 * 30
+  }
 
-  const calculateBodyguardPrice = () => {
-    if (!bodyguard) return 0;
-    if (bodyguardDuration === 'hourly') return bodyguard.pricePerHour * 8;
-    else if (bodyguardDuration === 'daily') return bodyguard.pricePerHour * 24 * 3;
-    else if (bodyguardDuration === 'weekly') return bodyguard.pricePerHour * 24 * 7;
-    else return bodyguard.pricePerHour * 24 * 30;
-  };
+  function calculateBodyguardPrice() {
+    if (!bodyguard) return 0
+    if (bodyguardDuration === 'hourly') return bodyguard.pricePerHour * 8
+    else if (bodyguardDuration === 'daily') return bodyguard.pricePerHour * 24 * 3
+    else if (bodyguardDuration === 'weekly') return bodyguard.pricePerHour * 24 * 7
+    else return bodyguard.pricePerHour * 24 * 30
+  }
 
-  // Discount rates when booking with vehicle
-  const DRIVER_DISCOUNT = 0.10; // 10% off
-  const BODYGUARD_DISCOUNT = 0.15; // 15% off
+  const DRIVER_DISCOUNT = 0.10
+  const BODYGUARD_DISCOUNT = 0.15
 
-  const vehiclePrice = calculateVehiclePrice();
-  const driverOriginalPrice = calculateDriverPrice();
-  const bodyguardOriginalPrice = calculateBodyguardPrice();
+  const vehiclePrice = calculateVehiclePrice()
+  const driverOriginalPrice = calculateDriverPrice()
+  const bodyguardOriginalPrice = calculateBodyguardPrice()
 
-  // Apply discounts only when booking with vehicle
-  const driverDiscount = driverOriginalPrice * DRIVER_DISCOUNT;
-  const bodyguardDiscount = bodyguardOriginalPrice * BODYGUARD_DISCOUNT;
+  const driverDiscount = driverOriginalPrice * DRIVER_DISCOUNT
+  const bodyguardDiscount = bodyguardOriginalPrice * BODYGUARD_DISCOUNT
   
-  const driverFinalPrice = driverOriginalPrice - driverDiscount;
-  const bodyguardFinalPrice = bodyguardOriginalPrice - bodyguardDiscount;
+  const driverFinalPrice = driverOriginalPrice - driverDiscount
+  const bodyguardFinalPrice = bodyguardOriginalPrice - bodyguardDiscount
 
-  const subtotal = vehiclePrice + driverOriginalPrice + bodyguardOriginalPrice;
-  const totalDiscount = driverDiscount + bodyguardDiscount;
-  const total = vehiclePrice + driverFinalPrice + bodyguardFinalPrice;
+  const subtotal = vehiclePrice + driverOriginalPrice + bodyguardOriginalPrice
+  const totalDiscount = driverDiscount + bodyguardDiscount
+  const total = vehiclePrice + driverFinalPrice + bodyguardFinalPrice
 
-  const handleContinue = () => {
-    const params = new URLSearchParams();
+  function handleContinue() {
+    const params = new URLSearchParams()
     
-    // Vehicle params
     if (vehicle) {
-      params.set('vehicleId', vehicle.id);
-      params.set('vehicleDuration', vehicleDuration);
-      params.set('vehicleStartDate', vehicleStartDate.toISOString());
-      if (vehicleEndDate) params.set('vehicleEndDate', vehicleEndDate.toISOString());
-      params.set('vehicleStartTime', vehicleStartTime);
-      params.set('vehicleEndTime', vehicleEndTime);
+      params.set('vehicleId', vehicle.id)
+      params.set('vehicleDuration', vehicleDuration)
+      params.set('vehicleStartDate', vehicleStartDate.toISOString())
+      if (vehicleEndDate) params.set('vehicleEndDate', vehicleEndDate.toISOString())
+      params.set('vehicleStartTime', vehicleStartTime)
+      params.set('vehicleEndTime', vehicleEndTime)
     }
 
-    // Driver params
     if (addDriver && selectedDriver) {
-      params.set('driverId', selectedDriver);
-      params.set('driverDuration', driverDuration);
-      params.set('driverStartDate', driverStartDate.toISOString());
-      if (driverEndDate) params.set('driverEndDate', driverEndDate.toISOString());
-      params.set('driverStartTime', driverStartTime);
-      params.set('driverEndTime', driverEndTime);
+      params.set('driverId', selectedDriver)
+      params.set('driverDuration', driverDuration)
+      params.set('driverStartDate', driverStartDate.toISOString())
+      if (driverEndDate) params.set('driverEndDate', driverEndDate.toISOString())
+      params.set('driverStartTime', driverStartTime)
+      params.set('driverEndTime', driverEndTime)
     }
 
-    // Bodyguard params
     if (addBodyguard && selectedBodyguard) {
-      params.set('bodyguardId', selectedBodyguard);
-      params.set('bodyguardDuration', bodyguardDuration);
-      params.set('bodyguardStartDate', bodyguardStartDate.toISOString());
-      if (bodyguardEndDate) params.set('bodyguardEndDate', bodyguardEndDate.toISOString());
-      params.set('bodyguardStartTime', bodyguardStartTime);
-      params.set('bodyguardEndTime', bodyguardEndTime);
+      params.set('bodyguardId', selectedBodyguard)
+      params.set('bodyguardDuration', bodyguardDuration)
+      params.set('bodyguardStartDate', bodyguardStartDate.toISOString())
+      if (bodyguardEndDate) params.set('bodyguardEndDate', bodyguardEndDate.toISOString())
+      params.set('bodyguardStartTime', bodyguardStartTime)
+      params.set('bodyguardEndTime', bodyguardEndTime)
     }
 
-    navigate(`/booking/summary?${params.toString()}`);
-  };
+    navigate(`/booking/summary?${params.toString()}`)
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -227,8 +221,8 @@ export function AddOnsSelection() {
             onStartTimeChange={setDriverStartTime}
             onEndTimeChange={setDriverEndTime}
             onRemove={() => {
-              setAddDriver(false);
-              setSelectedDriver(null);
+              setAddDriver(false)
+              setSelectedDriver(null)
             }}
           />
         )}
@@ -252,8 +246,8 @@ export function AddOnsSelection() {
             onStartTimeChange={setBodyguardStartTime}
             onEndTimeChange={setBodyguardEndTime}
             onRemove={() => {
-              setAddBodyguard(false);
-              setSelectedBodyguard(null);
+              setAddBodyguard(false)
+              setSelectedBodyguard(null)
             }}
           />
         )}
@@ -389,10 +383,10 @@ export function AddOnsSelection() {
                 <button
                   key={d.id}
                   onClick={() => {
-                    setSelectedDriver(d.id);
-                    setAddDriver(true);
-                    setShowDriverSelector(false);
-                    setDriverSearchQuery('');
+                    setSelectedDriver(d.id)
+                    setAddDriver(true)
+                    setShowDriverSelector(false)
+                    setDriverSearchQuery('')
                   }}
                   className="w-full p-4 border-2 border-gray-200 hover:border-green-600 rounded-xl transition-colors text-left"
                 >
@@ -449,10 +443,10 @@ export function AddOnsSelection() {
                 <button
                   key={b.id}
                   onClick={() => {
-                    setSelectedBodyguard(b.id);
-                    setAddBodyguard(true);
-                    setShowBodyguardSelector(false);
-                    setBodyguardSearchQuery('');
+                    setSelectedBodyguard(b.id)
+                    setAddBodyguard(true)
+                    setShowBodyguardSelector(false)
+                    setBodyguardSearchQuery('')
                   }}
                   className="w-full p-4 border-2 border-gray-200 hover:border-purple-600 rounded-xl transition-colors text-left"
                 >
@@ -474,5 +468,5 @@ export function AddOnsSelection() {
         </SheetContent>
       </Sheet>
     </div>
-  );
+  )
 }

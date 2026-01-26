@@ -1,23 +1,23 @@
-import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { toast } from 'sonner';
-import { apiJson } from '../../lib/api';
-import { endpoints } from '../../lib/endpoints';
-import { ChevronLeft } from 'lucide-react';
+import { useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Button } from '../ui/button'
+import { Input } from '../ui/input'
+import { Label } from '../ui/label'
+import { toast } from 'sonner'
+import { apiJson } from '../../lib/api'
+import { endpoints } from '../../lib/endpoints'
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left'
 
 export function ForgotPassword() {
-  const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate()
+  const [email, setEmail] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isLoading || !email.trim()) return;
+    e.preventDefault()
+    if (isLoading || !email.trim()) return
 
-    setIsLoading(true);
+    setIsLoading(true)
 
     try {
       await apiJson({
@@ -25,17 +25,17 @@ export function ForgotPassword() {
         method: 'POST',
         body: { email: email.trim() },
         skipAuth: true,
-      });
+      })
 
-      toast.success('OTP sent to your email');
-      navigate('/verify-otp', { state: { email: email.trim() } });
+      toast.success('OTP sent to your email')
+      navigate('/verify-otp', { state: { email: email.trim() } })
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to send OTP';
-      toast.error(message);
+      const message = error instanceof Error ? error.message : 'Failed to send OTP'
+      toast.error(message)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [email, isLoading, navigate]);
+  }, [email, isLoading, navigate])
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -90,5 +90,5 @@ export function ForgotPassword() {
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -1,117 +1,112 @@
-import { Avatar } from '../ui/avatar';
-import { toast } from 'sonner';
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useApp, type Driver } from '../../contexts/AppContext';
-import { Button } from '../ui/button';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
-import {
-  ChevronLeft,
-  Star,
-  Award,
-  Shield,
-  Check,
-  Clock,
-  MapPin,
-  Phone,
-  Mail,
-  Loader2,
-  AlertCircle,
-} from 'lucide-react';
-import { Badge } from '../ui/badge';
+import { Avatar } from '../ui/avatar'
+import { toast } from 'sonner'
+import { useEffect, useState } from 'react'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useApp, type Driver } from '../../contexts/AppContext'
+import { Button } from '../ui/button'
+import { ImageWithFallback } from '../figma/ImageWithFallback'
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left'
+import Star from 'lucide-react/dist/esm/icons/star'
+import Award from 'lucide-react/dist/esm/icons/award'
+import Shield from 'lucide-react/dist/esm/icons/shield'
+import Check from 'lucide-react/dist/esm/icons/check'
+import Clock from 'lucide-react/dist/esm/icons/clock'
+import MapPin from 'lucide-react/dist/esm/icons/map-pin'
+import Phone from 'lucide-react/dist/esm/icons/phone'
+import Mail from 'lucide-react/dist/esm/icons/mail'
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
+import { Badge } from '../ui/badge'
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetDescription,
-} from '../ui/sheet';
-import { Progress } from '../ui/progress';
-import React from 'react';
-import { getDriverDetails } from '../../lib/driverSearch';
-import { apiJson } from '../../lib/api';
-import { endpoints } from '../../lib/endpoints';
+} from '../ui/sheet'
+import { Progress } from '../ui/progress'
+import { getDriverDetails } from '../../lib/driverSearch'
+import { apiJson } from '../../lib/api'
+import { endpoints } from '../../lib/endpoints'
 
 interface Review {
-  id: string;
-  userName: string;
-  userImage: string;
-  rating: number;
-  date: string;
-  comment: string;
-  helpful: number;
+  id: string
+  userName: string
+  userImage: string
+  rating: number
+  date: string
+  comment: string
+  helpful: number
 }
 
-
 export function DriverDetails() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { drivers, cart, addToCart, bookings, selectedCity } = useApp();
-  const [searchParams] = useSearchParams();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [apiDriver, setApiDriver] = useState<Driver | null>(null);
-  const [showReviews, setShowReviews] = useState(false);
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const { drivers, cart, addToCart, bookings, selectedCity } = useApp()
+  const [searchParams] = useSearchParams()
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [apiDriver, setApiDriver] = useState<Driver | null>(null)
+  const [showReviews, setShowReviews] = useState(false)
   const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>(
     (searchParams.get('duration') as 'hourly' | 'daily' | 'weekly' | 'monthly') || 'daily'
-  );
-  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  )
+  const [isAddingToCart, setIsAddingToCart] = useState(false)
 
-  const urlDuration = searchParams.get('duration') as 'hourly' | 'halfday' | 'fullday' | 'weekly' | 'monthly' | null;
-  const urlStartDate = searchParams.get('startDate');
-  const urlEndDate = searchParams.get('endDate');
-  const urlStartTime = searchParams.get('startTime') || '09:00';
-  const urlEndTime = searchParams.get('endTime') || '17:00';
+  const urlDuration = searchParams.get('duration') as 'hourly' | 'halfday' | 'fullday' | 'weekly' | 'monthly' | null
+  const urlStartDate = searchParams.get('startDate')
+  const urlEndDate = searchParams.get('endDate')
+  const urlStartTime = searchParams.get('startTime') || '09:00'
+  const urlEndTime = searchParams.get('endTime') || '17:00'
 
   interface AddToCartResponse {
-    statusCode: number;
-    message: string;
-    data: unknown;
+    statusCode: number
+    message: string
+    data: unknown
   }
 
-  const contextDriver = drivers.find(d => d.id === id);
-  const driver = apiDriver || contextDriver;
+  const contextDriver = drivers.find(d => d.id === id)
+  const driver = apiDriver || contextDriver
 
   useEffect(() => {
-    if (!urlDuration) return;
+    if (!urlDuration) return
 
     if (['hourly', 'halfday', 'fullday', 'weekly', 'monthly'].includes(urlDuration)) {
-      setSelectedDuration(urlDuration as typeof selectedDuration);
+      setSelectedDuration(urlDuration as typeof selectedDuration)
     }
-  }, [urlDuration]);
+  }, [urlDuration])
 
   useEffect(() => {
-    if (!id || contextDriver) return;
+    if (!id || contextDriver) return
 
-    let cancelled = false;
-    setIsLoading(true);
-    setError(null);
+    let cancelled = false
+    setIsLoading(true)
+    setError(null)
 
     getDriverDetails(id)
       .then((data) => {
-        if (cancelled) return;
-        setApiDriver(data);
+        if (cancelled) return
+        setApiDriver(data)
       })
       .catch((err) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Failed to load driver');
+        if (cancelled) return
+        setError(err instanceof Error ? err.message : 'Failed to load driver')
       })
       .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
+        if (!cancelled) setIsLoading(false)
+      })
 
     return () => {
-      cancelled = true;
-    };
-  }, [id, contextDriver]);
+      cancelled = true
+    }
+  }, [id, contextDriver])
 
-  // Check if vehicle is in cart OR user has active vehicle booking for bundle discount
-  const hasVehicleInCart = cart.some(item => item.type === 'vehicle');
+  const hasVehicleInCart = cart.some(item => item.type === 'vehicle')
   const hasActiveVehicleBooking = bookings.some(
     booking => booking.vehicleId && (booking.status === 'confirmed' || booking.status === 'completed')
-  );
-  const qualifiesForDiscount = hasVehicleInCart || hasActiveVehicleBooking;
-  const DRIVER_DISCOUNT = 0.10; // 10% off
+  )
+  const qualifiesForDiscount = hasVehicleInCart || hasActiveVehicleBooking
+  const DRIVER_DISCOUNT = 0.10
 
   const reviews: Review[] = [
     {

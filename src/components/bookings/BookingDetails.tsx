@@ -1,105 +1,110 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import { Button } from '../ui/button';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { ChevronLeft, Calendar, CreditCard, AlertCircle, Clock, Loader2 } from 'lucide-react';
-import { Badge } from '../ui/badge';
-import { format, differenceInHours, differenceInDays } from 'date-fns';
-import React, { useState, useEffect } from 'react';
-import { apiJson } from '../../lib/api';
-import { endpoints } from '../../lib/endpoints';
-import { getVehicleDetails } from '../../lib/vehicleSearch';
-import { getDriverDetails } from '../../lib/driverSearch';
-import { getBodyguardDetails } from '../../lib/bodyguardSearch';
-import type { Vehicle, Driver, Bodyguard } from '../../contexts/AppContext';
-import { BookingStatus } from '../../enums/booking';
+import { useParams, useNavigate } from 'react-router-dom'
+import { Button } from '../ui/button'
+import { ImageWithFallback } from '../figma/ImageWithFallback'
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left'
+import Calendar from 'lucide-react/dist/esm/icons/calendar'
+import CreditCard from 'lucide-react/dist/esm/icons/credit-card'
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
+import Clock from 'lucide-react/dist/esm/icons/clock'
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
+import { Badge } from '../ui/badge'
+import { format, differenceInHours, differenceInDays } from 'date-fns'
+import { useState, useEffect } from 'react'
+import { apiJson } from '../../lib/api'
+import { endpoints } from '../../lib/endpoints'
+import { getVehicleDetails } from '../../lib/vehicleSearch'
+import { getDriverDetails } from '../../lib/driverSearch'
+import { getBodyguardDetails } from '../../lib/bodyguardSearch'
+import type { Vehicle, Driver, Bodyguard } from '../../contexts/AppContext'
+import { BookingStatus } from '../../enums/booking'
 
 interface BookingService {
-  bookingType: 'VEHICLE' | 'DRIVER' | 'BODYGUARD';
-  bookingId: string;
-  serviceId: string;
-  startDate: string;
-  endDate: string;
-  pricingType: 'HOURLY' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
-  price: number;
-  status: string;
+  bookingType: 'VEHICLE' | 'DRIVER' | 'BODYGUARD'
+  bookingId: string
+  serviceId: string
+  startDate: string
+  endDate: string
+  pricingType: 'HOURLY' | 'DAILY' | 'WEEKLY' | 'MONTHLY'
+  price: number
+  status: string
 }
 
 interface BookingDetailsResponse {
-  statusCode: number;
-  message: string;
+  statusCode: number
+  message: string
   data: {
-    rootBookingId: string;
-    bookingId: string;
-    services: BookingService[];
+    rootBookingId: string
+    bookingId: string
+    services: BookingService[]
     costBreakdown: {
-      vehicle: number;
-      driver: number;
-      bodyguard: number;
-      total: number;
-    };
-  };
+      vehicle: number
+      driver: number
+      bodyguard: number
+      total: number
+    }
+  }
 }
 
 export function BookingDetails() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const [bookingData, setBookingData] = useState<BookingDetailsResponse['data'] | null>(null);
-  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
-  const [driver, setDriver] = useState<Driver | null>(null);
-  const [bodyguard, setBodyguard] = useState<Bodyguard | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const [bookingData, setBookingData] = useState<BookingDetailsResponse['data'] | null>(null)
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null)
+  const [driver, setDriver] = useState<Driver | null>(null)
+  const [bodyguard, setBodyguard] = useState<Bodyguard | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) {
-      setError('Booking ID is required');
-      setIsLoading(false);
-      return;
+      setError('Booking ID is required')
+      setIsLoading(false)
+      return
     }
 
-    const bookingId = id;
-    let cancelled = false;
+    const bookingId = id
+    let cancelled = false
 
     async function fetchBookingDetails() {
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true)
+      setError(null)
 
       try {
-        const path = endpoints.bookings.details(bookingId);
-        const response = await apiJson<BookingDetailsResponse>({ path });
+        const path = endpoints.bookings.details(bookingId)
+        const response = await apiJson<BookingDetailsResponse>({ path })
 
-        if (cancelled) return;
+        if (cancelled) return
 
-        setBookingData(response.data);
+        setBookingData(response.data)
 
-        const vehicleService = response.data.services.find(s => s.bookingType === 'VEHICLE');
-        const driverService = response.data.services.find(s => s.bookingType === 'DRIVER');
-        const bodyguardService = response.data.services.find(s => s.bookingType === 'BODYGUARD');
+        const vehicleService = response.data.services.find(s => s.bookingType === 'VEHICLE')
+        const driverService = response.data.services.find(s => s.bookingType === 'DRIVER')
+        const bodyguardService = response.data.services.find(s => s.bookingType === 'BODYGUARD')
 
         if (vehicleService) {
           try {
-            const vehicleDetails = await getVehicleDetails(vehicleService.serviceId);
-            if (!cancelled) setVehicle(vehicleDetails);
+            const vehicleDetails = await getVehicleDetails(vehicleService.serviceId)
+            if (!cancelled) setVehicle(vehicleDetails)
           } catch (err) {
-            console.error('Failed to fetch vehicle details:', err);
+            console.error('Failed to fetch vehicle details:', err)
           }
         }
 
         if (driverService) {
           try {
-            const driverDetails = await getDriverDetails(driverService.serviceId);
-            if (!cancelled) setDriver(driverDetails);
+            const driverDetails = await getDriverDetails(driverService.serviceId)
+            if (!cancelled) setDriver(driverDetails)
           } catch (err) {
-            console.error('Failed to fetch driver details:', err);
+            console.error('Failed to fetch driver details:', err)
           }
         }
 
         if (bodyguardService) {
           try {
-            const bodyguardDetails = await getBodyguardDetails(bodyguardService.serviceId);
-            if (!cancelled) setBodyguard(bodyguardDetails);
+            const bodyguardDetails = await getBodyguardDetails(bodyguardService.serviceId)
+            if (!cancelled) setBodyguard(bodyguardDetails)
           } catch (err) {
-            console.error('Failed to fetch bodyguard details:', err);
+            console.error('Failed to fetch bodyguard details:', err)
           }
         }
       } catch (err) {

@@ -1,50 +1,53 @@
-import { useNavigate } from 'react-router-dom';
-import { TopBar } from '../layout/TopBar';
-import { BottomNav } from '../layout/BottomNav';
-import { Car, UserCircle, Shield, ChevronRight, Star, Award, Clock } from 'lucide-react';
-import { motion } from 'motion/react';
-import React from 'react';
+import { useNavigate } from 'react-router-dom'
+import { TopBar } from '../layout/TopBar'
+import { BottomNav } from '../layout/BottomNav'
+import Car from 'lucide-react/dist/esm/icons/car'
+import UserCircle from 'lucide-react/dist/esm/icons/user-circle'
+import Shield from 'lucide-react/dist/esm/icons/shield'
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right'
+import Star from 'lucide-react/dist/esm/icons/star'
+import Award from 'lucide-react/dist/esm/icons/award'
+import Clock from 'lucide-react/dist/esm/icons/clock'
+import { motion } from 'motion/react'
+
+const services = [
+  {
+    id: 'vehicles',
+    title: 'Luxury Vehicles',
+    description: 'Premium cars, SUVs & sports cars',
+    icon: Car,
+    gradient: 'from-neutral-900 via-neutral-800 to-neutral-900',
+    route: '/vehicles',
+    badge: 'Most Popular'
+  },
+  {
+    id: 'drivers',
+    title: 'Professional Chauffeur',
+    description: 'Experienced drivers at your service',
+    icon: UserCircle,
+    gradient: 'from-neutral-800 via-neutral-700 to-neutral-800',
+    route: '/drivers',
+    badge: null
+  },
+  {
+    id: 'bodyguards',
+    title: 'Executive Security',
+    description: 'Elite protection & security teams',
+    icon: Shield,
+    gradient: 'from-neutral-700 via-neutral-600 to-neutral-700',
+    route: '/bodyguards',
+    badge: 'Premium'
+  }
+]
 
 export function Services() {
-  const navigate = useNavigate();
-
-  const services = [
-    {
-      id: 'vehicles',
-      title: 'Luxury Vehicles',
-      description: 'Premium cars, SUVs & sports cars',
-      icon: Car,
-      gradient: 'from-neutral-900 via-neutral-800 to-neutral-900',
-      route: '/vehicles',
-      badge: 'Most Popular'
-    },
-    {
-      id: 'drivers',
-      title: 'Professional Chauffeur',
-      description: 'Experienced drivers at your service',
-      icon: UserCircle,
-      gradient: 'from-neutral-800 via-neutral-700 to-neutral-800',
-      route: '/drivers',
-      badge: null
-    },
-    {
-      id: 'bodyguards',
-      title: 'Executive Security',
-      description: 'Elite protection & security teams',
-      icon: Shield,
-      gradient: 'from-neutral-700 via-neutral-600 to-neutral-700',
-      route: '/bodyguards',
-      badge: 'Premium'
-    }
-  ];
-
+  const navigate = useNavigate()
 
   return (
     <div className="min-h-screen bg-white pb-20">
       <TopBar />
 
       <div className="pt-14">
-        {/* Premium Hero Section */}
         <div className="px-6 py-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -67,11 +70,10 @@ export function Services() {
           </motion.div>
         </div>
 
-        {/* Service Cards - Uber-inspired minimal design */}
         <div className="px-6 pb-6">
           <div className="max-w-2xl mx-auto space-y-3">
             {services.map((service, index) => {
-              const Icon = service.icon;
+              const Icon = service.icon
               return (
                 <motion.button
                   key={service.id}
@@ -82,13 +84,13 @@ export function Services() {
                   className="w-full group relative overflow-hidden"
                 >
                   <div className={`bg-gradient-to-br ${service.gradient} rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-white/10`}>
-                    {service.badge && (
+                    {service.badge ? (
                       <div className="absolute top-4 right-4">
                         <span className="inline-flex items-center px-2.5 py-1 bg-[#d4af37] rounded-full text-xs font-semibold text-neutral-900">
                           {service.badge}
                         </span>
                       </div>
-                    )}
+                    ) : null}
 
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center group-hover:bg-white/20 transition-all">
@@ -108,12 +110,11 @@ export function Services() {
                     </div>
                   </div>
                 </motion.button>
-              );
+              )
             })}
           </div>
         </div>
 
-        {/* Trust Signals - Hertz-inspired */}
         <div className="px-6 pb-6">
           <div className="max-w-2xl mx-auto">
             <div className="grid grid-cols-3 gap-3">
@@ -159,7 +160,6 @@ export function Services() {
           </div>
         </div>
 
-        {/* Premium Features Banner */}
         <div className="px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -193,5 +193,5 @@ export function Services() {
 
       <BottomNav />
     </div>
-  );
+  )
 }

@@ -1,51 +1,56 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Button } from '../ui/button'
+import { Input } from '../ui/input'
 
-const OTP_LENGTH = 6;
-const INITIAL_COUNTDOWN = 60;
+const OTP_LENGTH = 6
+const INITIAL_COUNTDOWN = 60
 
 export function VerifyEmail() {
-  const navigate = useNavigate();
-  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
-  const [countdown, setCountdown] = useState(INITIAL_COUNTDOWN);
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const navigate = useNavigate()
+  const [otp, setOtp] = useState<string[]>(() => Array(OTP_LENGTH).fill(''))
+  const [countdown, setCountdown] = useState(INITIAL_COUNTDOWN)
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(prev => prev - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [countdown]);
+    if (countdown <= 0) return
+    
+    const timer = setTimeout(() => {
+      setCountdown(curr => curr - 1)
+    }, 1000)
+    
+    return () => clearTimeout(timer)
+  }, [countdown])
 
   const handleChange = useCallback((index: number, value: string) => {
-    if (value.length > 1 || !/^\d*$/.test(value)) return;
+    if (value.length > 1 || !/^\d*$/.test(value)) return
     
-    setOtp(prev => {
-      const newOtp = [...prev];
-      newOtp[index] = value;
-      return newOtp;
-    });
+    setOtp(curr => {
+      const newOtp = [...curr]
+      newOtp[index] = value
+      return newOtp
+    })
 
     if (value && index < OTP_LENGTH - 1) {
-      inputRefs.current[index + 1]?.focus();
+      inputRefs.current[index + 1]?.focus()
     }
-  }, []);
+  }, [])
 
   const handleKeyDown = useCallback((index: number, e: React.KeyboardEvent) => {
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
+      inputRefs.current[index - 1]?.focus()
     }
-  }, [otp]);
+  }, [otp])
 
   const handleVerify = useCallback(() => {
-    navigate('/welcome');
-  }, [navigate]);
+    navigate('/welcome')
+  }, [navigate])
 
   const handleResend = useCallback(() => {
-    setCountdown(INITIAL_COUNTDOWN);
-  }, []);
+    setCountdown(INITIAL_COUNTDOWN)
+  }, [])
+
+  const isOtpComplete = otp.every(digit => digit)
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -83,7 +88,7 @@ export function VerifyEmail() {
             <Button 
               onClick={handleVerify}
               className="w-full h-12"
-              disabled={otp.some(digit => !digit)}
+              disabled={!isOtpComplete}
             >
               Verify
             </Button>
@@ -106,5 +111,5 @@ export function VerifyEmail() {
         </div>
       </div>
     </div>
-  );
+  )
 }

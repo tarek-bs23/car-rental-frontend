@@ -1,100 +1,106 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useApp, type Bodyguard } from '../../contexts/AppContext';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '../ui/sheet';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { ChevronLeft, Star, Check, Shield, Award, AlertCircle, Users, Loader2 } from 'lucide-react';
-import { Progress } from '../ui/progress';
-import { Avatar } from '../ui/avatar';
-import { toast } from 'sonner';
-import { getBodyguardDetails } from '../../lib/bodyguardSearch';
-import { apiJson } from '../../lib/api';
-import { endpoints } from '../../lib/endpoints';
+import { useEffect, useState } from 'react'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useApp, type Bodyguard } from '../../contexts/AppContext'
+import { Button } from '../ui/button'
+import { Badge } from '../ui/badge'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '../ui/sheet'
+import { ImageWithFallback } from '../figma/ImageWithFallback'
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left'
+import Star from 'lucide-react/dist/esm/icons/star'
+import Check from 'lucide-react/dist/esm/icons/check'
+import Shield from 'lucide-react/dist/esm/icons/shield'
+import Award from 'lucide-react/dist/esm/icons/award'
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
+import Users from 'lucide-react/dist/esm/icons/users'
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
+import { Progress } from '../ui/progress'
+import { Avatar } from '../ui/avatar'
+import { toast } from 'sonner'
+import { getBodyguardDetails } from '../../lib/bodyguardSearch'
+import { apiJson } from '../../lib/api'
+import { endpoints } from '../../lib/endpoints'
 
 interface Review {
-  id: string;
-  userName: string;
-  userImage: string;
-  rating: number;
-  date: string;
-  comment: string;
-  helpful: number;
+  id: string
+  userName: string
+  userImage: string
+  rating: number
+  date: string
+  comment: string
+  helpful: number
 }
 
 export function BodyguardDetails() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { bodyguards, cart, addToCart, bookings, selectedCity } = useApp();
-  const [searchParams] = useSearchParams();
-  const [showReviews, setShowReviews] = useState(false);
-  const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'halfday' | 'fullday' | 'weekly' | 'monthly'>('hourly');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [apiBodyguard, setApiBodyguard] = useState<Bodyguard | null>(null);
-  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const { bodyguards, cart, addToCart, bookings, selectedCity } = useApp()
+  const [searchParams] = useSearchParams()
+  const [showReviews, setShowReviews] = useState(false)
+  const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'halfday' | 'fullday' | 'weekly' | 'monthly'>('hourly')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [apiBodyguard, setApiBodyguard] = useState<Bodyguard | null>(null)
+  const [isAddingToCart, setIsAddingToCart] = useState(false)
 
-  const urlDuration = searchParams.get('duration') as 'hourly' | 'daily' | 'weekly' | 'monthly' | null;
-  const urlStartDate = searchParams.get('startDate');
-  const urlEndDate = searchParams.get('endDate');
-  const urlStartTime = searchParams.get('startTime') || '09:00';
-  const urlEndTime = searchParams.get('endTime') || '17:00';
+  const urlDuration = searchParams.get('duration') as 'hourly' | 'daily' | 'weekly' | 'monthly' | null
+  const urlStartDate = searchParams.get('startDate')
+  const urlEndDate = searchParams.get('endDate')
+  const urlStartTime = searchParams.get('startTime') || '09:00'
+  const urlEndTime = searchParams.get('endTime') || '17:00'
 
   interface AddToCartResponse {
-    statusCode: number;
-    message: string;
-    data: unknown;
+    statusCode: number
+    message: string
+    data: unknown
   }
 
-  const contextBodyguard = bodyguards.find(b => b.id === id);
-  const bodyguard = apiBodyguard || contextBodyguard;
+  const contextBodyguard = bodyguards.find(b => b.id === id)
+  const bodyguard = apiBodyguard || contextBodyguard
 
   useEffect(() => {
-    if (!urlDuration) return;
+    if (!urlDuration) return
 
     if (urlDuration === 'daily') {
-      setSelectedDuration('fullday');
-      return;
+      setSelectedDuration('fullday')
+      return
     }
 
     if (['hourly', 'weekly', 'monthly'].includes(urlDuration)) {
-      setSelectedDuration(urlDuration as typeof selectedDuration);
+      setSelectedDuration(urlDuration as typeof selectedDuration)
     }
-  }, [urlDuration]);
+  }, [urlDuration])
 
   useEffect(() => {
-    if (!id || contextBodyguard) return;
+    if (!id || contextBodyguard) return
 
-    let cancelled = false;
-    setIsLoading(true);
-    setError(null);
+    let cancelled = false
+    setIsLoading(true)
+    setError(null)
 
     getBodyguardDetails(id)
       .then((data) => {
-        if (cancelled) return;
-        setApiBodyguard(data);
+        if (cancelled) return
+        setApiBodyguard(data)
       })
       .catch((err) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Failed to load security service');
+        if (cancelled) return
+        setError(err instanceof Error ? err.message : 'Failed to load security service')
       })
       .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
+        if (!cancelled) setIsLoading(false)
+      })
 
     return () => {
-      cancelled = true;
-    };
-  }, [id, contextBodyguard]);
+      cancelled = true
+    }
+  }, [id, contextBodyguard])
   
-  // Check if vehicle is in cart OR user has active vehicle booking for bundle discount
-  const hasVehicleInCart = cart.some(item => item.type === 'vehicle');
+  const hasVehicleInCart = cart.some(item => item.type === 'vehicle')
   const hasActiveVehicleBooking = bookings.some(
     booking => booking.vehicleId && (booking.status === 'confirmed' || booking.status === 'completed')
-  );
-  const qualifiesForDiscount = hasVehicleInCart || hasActiveVehicleBooking;
-  const BODYGUARD_DISCOUNT = 0.15; // 15% off
+  )
+  const qualifiesForDiscount = hasVehicleInCart || hasActiveVehicleBooking
+  const BODYGUARD_DISCOUNT = 0.15
 
   const reviews: Review[] = [
     {

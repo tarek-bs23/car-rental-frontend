@@ -1,15 +1,13 @@
-import { Button } from '../ui/button';
-import { useNavigate } from 'react-router-dom';
-import React from 'react';
+import { Button } from '../ui/button'
+import { useNavigate } from 'react-router-dom'
 
 export function Welcome() {
-  const navigate = useNavigate();
+  const navigate = useNavigate()
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="w-full max-w-md space-y-8 text-center">
-          {/* Success Animation */}
           <div className="w-24 h-24 mx-auto bg-green-100 rounded-full flex items-center justify-center">
             <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -40,5 +38,5 @@ export function Welcome() {
         </div>
       </div>
     </div>
-  );
+  )
 }

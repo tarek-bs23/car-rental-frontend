@@ -1,14 +1,59 @@
+const storageCache = new Map<string, string | null>()
+
+function getLocalStorage(key: string): string | null {
+  if (!storageCache.has(key)) {
+    try {
+      const value = localStorage.getItem(key)
+      storageCache.set(key, value)
+      return value
+    } catch {
+      return null
+    }
+  }
+  return storageCache.get(key) ?? null
+}
+
+function setLocalStorage(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value)
+    storageCache.set(key, value)
+  } catch {
+    // Storage quota exceeded or disabled
+  }
+}
+
+function removeLocalStorage(key: string): void {
+  try {
+    localStorage.removeItem(key)
+    storageCache.delete(key)
+  } catch {
+    // Storage disabled
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key) storageCache.delete(e.key)
+  })
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      storageCache.clear()
+    }
+  })
+}
+
 export function getApiBaseUrl() {
   return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
 }
 
 export function getAccessToken(): string | null {
-  return localStorage.getItem('accessToken')
+  return getLocalStorage('accessToken')
 }
 
 export function clearAuthStorage() {
-  localStorage.removeItem('accessToken')
-  localStorage.removeItem('user')
+  removeLocalStorage('accessToken')
+  removeLocalStorage('user')
 }
 
 interface ApiJsonOptions {
@@ -51,7 +96,10 @@ export async function apiJson<TResponse>(options: ApiJsonOptions): Promise<TResp
   if (!response.ok) {
     if (response.status === 401) {
       clearAuthStorage()
-      window.location.href = '/launch'
+      if (typeof window !== 'undefined') {
+        window.location.href = '/launch'
+      }
+      throw new Error('Unauthorized')
     }
 
     const message =

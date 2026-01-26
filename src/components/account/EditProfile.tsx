@@ -1,27 +1,28 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useApp } from '../../contexts/AppContext';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { ChevronLeft, Camera } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState, useCallback, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useApp } from '../../contexts/AppContext'
+import { Button } from '../ui/button'
+import { Input } from '../ui/input'
+import { Label } from '../ui/label'
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left'
+import Camera from 'lucide-react/dist/esm/icons/camera'
+import { toast } from 'sonner'
 
 interface FormData {
-  name: string;
-  email: string;
-  phone: string;
+  name: string
+  email: string
+  phone: string
 }
 
 export function EditProfile() {
-  const navigate = useNavigate();
-  const { user, setUser } = useApp();
+  const navigate = useNavigate()
+  const { user, setUser } = useApp()
 
-  const [formData, setFormData] = useState<FormData>({
-    name: '',
-    email: '',
-    phone: '',
-  });
+  const [formData, setFormData] = useState<FormData>(() => ({
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+  }))
 
   useEffect(() => {
     if (user) {
@@ -34,28 +35,27 @@ export function EditProfile() {
   }, [user]);
 
   const handleChange = useCallback((field: keyof FormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  }, []);
+    setFormData(curr => ({ ...curr, [field]: value }))
+  }, [])
 
   const handleSave = useCallback(() => {
-    if (!user) return;
+    if (!user) return
 
     setUser({
       ...user,
       ...formData,
-    });
+    })
 
-    toast.success('Profile updated successfully');
-    navigate('/account');
-  }, [formData, navigate, setUser, user]);
+    toast.success('Profile updated successfully')
+    navigate('/account')
+  }, [formData, navigate, setUser, user])
 
   if (!user) {
-    return null;
+    return null
   }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
         <div className="flex items-center h-14 px-4">
           <button
@@ -156,5 +156,5 @@ export function EditProfile() {
         </div>
       </div>
     </div>
-  );
+  )
 }

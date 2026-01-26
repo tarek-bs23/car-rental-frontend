@@ -1,8 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useApp } from '../../contexts/AppContext';
-import { Button } from '../ui/button';
-import { ChevronLeft, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useApp } from '../../contexts/AppContext'
+import { Button } from '../ui/button'
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left'
+import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle'
+import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2'
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,89 +15,88 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '../ui/alert-dialog';
-import { apiJson } from '../../lib/api';
-import { endpoints } from '../../lib/endpoints';
-import { Textarea } from '../ui/textarea';
-import { toast } from 'sonner';
+} from '../ui/alert-dialog'
+import { apiJson } from '../../lib/api'
+import { endpoints } from '../../lib/endpoints'
+import { Textarea } from '../ui/textarea'
+import { toast } from 'sonner'
 
 interface EstimatedRefundResponse {
-  statusCode: number;
-  message: string;
+  statusCode: number
+  message: string
   data: {
-    bookingId: string;
-    bookingDate: string;
-    totalAmount: number;
-    estimatedRefundAmount: number;
-    refundTier: string;
-    refundPercentage: number;
-    currency: string;
-  };
+    bookingId: string
+    bookingDate: string
+    totalAmount: number
+    estimatedRefundAmount: number
+    refundTier: string
+    refundPercentage: number
+    currency: string
+  }
 }
 
 interface CancelBookingResponse {
-  statusCode: number;
-  message: string;
+  statusCode: number
+  message: string
   data: {
-    rootBookingId: string;
-    bookingId: string;
+    rootBookingId: string
+    bookingId: string
     services: Array<{
-      bookingType: string;
-      bookingId: string;
-      serviceId: string;
-      startDate: string;
-      endDate: string;
-      pricingType: string;
-      price: number;
-      status: string;
-    }>;
+      bookingType: string
+      bookingId: string
+      serviceId: string
+      startDate: string
+      endDate: string
+      pricingType: string
+      price: number
+      status: string
+    }>
     costBreakdown: {
-      vehicle: number;
-      driver: number;
-      bodyguard: number;
-      total: number;
-    };
-  };
+      vehicle: number
+      driver: number
+      bodyguard: number
+      total: number
+    }
+  }
 }
 
-
 export function CancelBooking() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { bookings, cancelBooking } = useApp();
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [cancelled, setCancelled] = useState(false);
-  const [estimate, setEstimate] = useState<EstimatedRefundResponse['data'] | null>(null);
-  const [isEstimating, setIsEstimating] = useState(false);
-  const [estimateError, setEstimateError] = useState<string | null>(null);
-  const [cancellationReason, setCancellationReason] = useState('');
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [cancelError, setCancelError] = useState<string | null>(null);
-  const [cancelResponse, setCancelResponse] = useState<CancelBookingResponse['data'] | null>(null);
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const { bookings, cancelBooking } = useApp()
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [cancelled, setCancelled] = useState(false)
+  const [estimate, setEstimate] = useState<EstimatedRefundResponse['data'] | null>(null)
+  const [isEstimating, setIsEstimating] = useState(false)
+  const [estimateError, setEstimateError] = useState<string | null>(null)
+  const [cancellationReason, setCancellationReason] = useState('')
+  const [isCancelling, setIsCancelling] = useState(false)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+  const [cancelResponse, setCancelResponse] = useState<CancelBookingResponse['data'] | null>(null)
 
-  const booking = bookings.find(b => b.id === id);
+  const booking = bookings.find(b => b.id === id)
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) return
 
-    const bookingId = id;
-    let cancelledRequest = false;
+    const bookingId = id
+    let cancelledRequest = false
 
     async function fetchEstimate() {
-      setIsEstimating(true);
-      setEstimateError(null);
+      setIsEstimating(true)
+      setEstimateError(null)
 
       try {
-        const path = endpoints.bookings.estimatedRefund(bookingId);
-        const response = await apiJson<EstimatedRefundResponse>({ path });
-        if (!cancelledRequest) setEstimate(response.data);
+        const path = endpoints.bookings.estimatedRefund(bookingId)
+        const response = await apiJson<EstimatedRefundResponse>({ path })
+        if (!cancelledRequest) setEstimate(response.data)
       } catch (err) {
         if (!cancelledRequest) {
-          setEstimate(null);
-          setEstimateError(err instanceof Error ? err.message : 'Failed to load refund estimate');
+          setEstimate(null)
+          setEstimateError(err instanceof Error ? err.message : 'Failed to load refund estimate')
         }
       } finally {
-        if (!cancelledRequest) setIsEstimating(false);
+        if (!cancelledRequest) setIsEstimating(false)
       }
     }
 

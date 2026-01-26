@@ -1,39 +1,38 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Checkbox } from '../ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '../ui/select';
-import { toast } from 'sonner';
-import { apiJson } from '../../lib/api';
-import { endpoints } from '../../lib/endpoints';
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Button } from '../ui/button'
+import { Input } from '../ui/input'
+import { Label } from '../ui/label'
+import { Checkbox } from '../ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import { toast } from 'sonner'
+import { apiJson } from '../../lib/api'
+import { endpoints } from '../../lib/endpoints'
 
-const IS_VERIFY_EMAIL_ENABLED = false;
+const IS_VERIFY_EMAIL_ENABLED = false
 
 interface City {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 interface FormData {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  cityId: string;
+  email: string
+  password: string
+  firstName: string
+  lastName: string
+  phoneNumber: string
+  cityId: string
 }
 
 interface CitiesResponse {
-  statusCode: number;
-  message: string;
-  data: City[];
+  statusCode: number
+  message: string
+  data: City[]
 }
 
-
 export function Register() {
-  const navigate = useNavigate();
+  const navigate = useNavigate()
   const [formData, setFormData] = useState<FormData>({
     email: '',
     password: '',
@@ -41,68 +40,68 @@ export function Register() {
     lastName: '',
     phoneNumber: '',
     cityId: '',
-  });
-  const [selectedCityId, setSelectedCityId] = useState<string | undefined>(undefined);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [cities, setCities] = useState<City[]>([]);
-  const [isCitiesLoading, setIsCitiesLoading] = useState(true);
-  const [citiesError, setCitiesError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  })
+  const [selectedCityId, setSelectedCityId] = useState<string | undefined>(undefined)
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [cities, setCities] = useState<City[]>([])
+  const [isCitiesLoading, setIsCitiesLoading] = useState(true)
+  const [citiesError, setCitiesError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    let isMounted = true;
+    let isMounted = true
 
     async function loadCities() {
-      setIsCitiesLoading(true);
-      setCitiesError(null);
+      setIsCitiesLoading(true)
+      setCitiesError(null)
 
       try {
         const response = await apiJson<CitiesResponse>({
           path: endpoints.auth.publicCities,
-        });
+        })
 
-        if (!isMounted) return;
+        if (!isMounted) return
 
-        setCities(response.data || []);
+        setCities(response.data || [])
 
         if (!selectedCityId && response.data && response.data.length > 0) {
-          const firstCityId = response.data[0].id;
-          setSelectedCityId(firstCityId);
-          setFormData(prev => ({ ...prev, cityId: firstCityId }));
+          const firstCityId = response.data[0].id
+          setSelectedCityId(firstCityId)
+          setFormData(curr => ({ ...curr, cityId: firstCityId }))
         }
       } catch (error) {
-        if (!isMounted) return;
+        if (!isMounted) return
 
-        const message = error instanceof Error ? error.message : 'Failed to load cities';
-        setCitiesError(message);
+        const message = error instanceof Error ? error.message : 'Failed to load cities'
+        setCitiesError(message)
       } finally {
-        if (!isMounted) return;
-        setIsCitiesLoading(false);
+        if (!isMounted) return
+        setIsCitiesLoading(false)
       }
     }
 
-    loadCities();
+    loadCities()
 
     return () => {
-      isMounted = false;
-    };
-  }, []);
+      isMounted = false
+    }
+  }, [selectedCityId])
 
   const handleFieldChange = useCallback((field: keyof FormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  }, []);
+    setFormData(curr => ({ ...curr, [field]: value }))
+  }, [])
 
   const handleCityChange = useCallback((value: string) => {
-    setSelectedCityId(value);
-    setFormData(prev => ({ ...prev, cityId: value }));
-  }, []);
+    setSelectedCityId(value)
+    setFormData(curr => ({ ...curr, cityId: value }))
+  }, [])
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
 
-    if (isSubmitting) return;
+    if (isSubmitting) return
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
 
     try {
       const payload = {
@@ -112,32 +111,32 @@ export function Register() {
         lastName: formData.lastName.trim(),
         phoneNumber: formData.phoneNumber.trim(),
         cityId: formData.cityId || undefined,
-      };
+      }
 
       await apiJson({
         path: endpoints.auth.registerUser,
         method: 'POST',
         body: payload,
-      });
+      })
 
-      toast.success('Account created successfully. Please log in.');
+      toast.success('Account created successfully. Please log in.')
 
       if (IS_VERIFY_EMAIL_ENABLED) {
-        navigate('/verify-email');
-        return;
+        navigate('/verify-email')
+        return
       }
 
-      navigate('/login');
+      navigate('/login')
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create account';
-      toast.error(message);
+      const message = error instanceof Error ? error.message : 'Failed to create account'
+      toast.error(message)
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  }, [formData, isSubmitting, navigate]);
+  }, [formData, isSubmitting, navigate])
 
   const isSubmitDisabled =
-    !agreedToTerms || isSubmitting || isCitiesLoading || !formData.cityId || !formData.firstName || !formData.lastName;
+    !agreedToTerms || isSubmitting || isCitiesLoading || !formData.cityId || !formData.firstName || !formData.lastName
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -264,5 +263,5 @@ export function Register() {
         </div>
       </div>
     </div>
-  );
+  )
 }

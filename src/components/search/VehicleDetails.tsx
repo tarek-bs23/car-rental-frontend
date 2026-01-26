@@ -1,100 +1,110 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useApp, type Vehicle } from '../../contexts/AppContext';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '../ui/sheet';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { ChevronLeft, Star, Check, Fuel, Users, Calendar, Clock, Shield, AlertCircle, FileText, Cog, Loader2 } from 'lucide-react';
-import { Progress } from '../ui/progress';
-import { Avatar } from '../ui/avatar';
-import { format, addDays } from 'date-fns';
-import { toast } from 'sonner';
-import { getVehicleDetails } from '../../lib/vehicleSearch';
-import { capitalizeFirstLetter } from '../../lib/utils';
-import { apiJson } from '../../lib/api';
-import { endpoints } from '../../lib/endpoints';
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useApp, type Vehicle } from '../../contexts/AppContext'
+import { Button } from '../ui/button'
+import { Badge } from '../ui/badge'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '../ui/sheet'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
+import { ImageWithFallback } from '../figma/ImageWithFallback'
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left'
+import Star from 'lucide-react/dist/esm/icons/star'
+import Check from 'lucide-react/dist/esm/icons/check'
+import Fuel from 'lucide-react/dist/esm/icons/fuel'
+import Users from 'lucide-react/dist/esm/icons/users'
+import Calendar from 'lucide-react/dist/esm/icons/calendar'
+import Clock from 'lucide-react/dist/esm/icons/clock'
+import Shield from 'lucide-react/dist/esm/icons/shield'
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
+import FileText from 'lucide-react/dist/esm/icons/file-text'
+import Cog from 'lucide-react/dist/esm/icons/cog'
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
+import { Progress } from '../ui/progress'
+import { Avatar } from '../ui/avatar'
+import { format, addDays } from 'date-fns'
+import { toast } from 'sonner'
+import { getVehicleDetails } from '../../lib/vehicleSearch'
+import { capitalizeFirstLetter } from '../../lib/utils'
+import { apiJson } from '../../lib/api'
+import { endpoints } from '../../lib/endpoints'
 
 interface Review {
-  id: string;
-  userName: string;
-  userImage: string;
-  rating: number;
-  date: string;
-  comment: string;
-  helpful: number;
+  id: string
+  userName: string
+  userImage: string
+  rating: number
+  date: string
+  comment: string
+  helpful: number
 }
 
 export function VehicleDetails() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { vehicles, addToCart, upsertVehicles, selectedCity } = useApp();
-  const [searchParams] = useSearchParams();
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [showReviews, setShowReviews] = useState(false);
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const { vehicles, addToCart, upsertVehicles, selectedCity } = useApp()
+  const [searchParams] = useSearchParams()
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  const [showReviews, setShowReviews] = useState(false)
   const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>(
     (searchParams.get('duration') as 'hourly' | 'daily' | 'weekly' | 'monthly') || 'daily'
-  );
-  const [touchStart, setTouchStart] = useState(0);
-  const [touchEnd, setTouchEnd] = useState(0);
-  const [includeFuel, setIncludeFuel] = useState(true);
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  )
+  const [touchStart, setTouchStart] = useState(0)
+  const [touchEnd, setTouchEnd] = useState(0)
+  const [includeFuel, setIncludeFuel] = useState(true)
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined)
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined)
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [apiVehicle, setApiVehicle] = useState<Vehicle | null>(null);
-  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [apiVehicle, setApiVehicle] = useState<Vehicle | null>(null)
+  const [isAddingToCart, setIsAddingToCart] = useState(false)
 
-  const contextVehicle = vehicles.find(v => v.id === id);
-  const vehicle = apiVehicle || contextVehicle;
+  const contextVehicle = vehicles.find(v => v.id === id)
+  const vehicle = apiVehicle || contextVehicle
 
-  const urlStartDate = searchParams.get('startDate');
-  const urlEndDate = searchParams.get('endDate');
-  const urlStartTime = searchParams.get('startTime') || '10:00';
-  const urlEndTime = searchParams.get('endTime') || '18:00';
+  const urlStartDate = searchParams.get('startDate')
+  const urlEndDate = searchParams.get('endDate')
+  const urlStartTime = searchParams.get('startTime') || '10:00'
+  const urlEndTime = searchParams.get('endTime') || '18:00'
 
   interface AddToCartResponse {
-    statusCode: number;
-    message: string;
-    data: unknown;
+    statusCode: number
+    message: string
+    data: unknown
   }
 
   useEffect(() => {
     if (urlStartDate) {
-      setStartDate(new Date(urlStartDate));
+      setStartDate(new Date(urlStartDate))
     }
     if (urlEndDate) {
-      setEndDate(new Date(urlEndDate));
+      setEndDate(new Date(urlEndDate))
     }
-  }, [urlStartDate, urlEndDate]);
+  }, [urlStartDate, urlEndDate])
 
   useEffect(() => {
-    if (!id || contextVehicle) return;
+    if (!id || contextVehicle) return
 
-    let cancelled = false;
-    setIsLoading(true);
-    setError(null);
+    let cancelled = false
+    setIsLoading(true)
+    setError(null)
 
     getVehicleDetails(id)
       .then((data) => {
-        if (cancelled) return;
-        setApiVehicle(data);
-        upsertVehicles([data]);
+        if (cancelled) return
+        setApiVehicle(data)
+        upsertVehicles([data])
       })
       .catch((err) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Failed to load vehicle');
+        if (cancelled) return
+        setError(err instanceof Error ? err.message : 'Failed to load vehicle')
       })
       .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
+        if (!cancelled) setIsLoading(false)
+      })
 
-    return () => { cancelled = true; };
-  }, [id, contextVehicle, upsertVehicles]);
+    return () => { cancelled = true }
+  }, [id, contextVehicle, upsertVehicles])
 
-  // Mock reviews data
   const reviews: Review[] = [
     {
       id: '1',
@@ -132,7 +142,7 @@ export function VehicleDetails() {
       comment: 'Worth every penny! The comfort and features are top-notch. Will definitely rent again.',
       helpful: 31
     },
-  ];
+  ]
 
   const ratingBreakdown = [
     { stars: 5, count: 98, percentage: 79 },
@@ -140,7 +150,7 @@ export function VehicleDetails() {
     { stars: 3, count: 5, percentage: 4 },
     { stars: 2, count: 2, percentage: 1 },
     { stars: 1, count: 1, percentage: 1 },
-  ];
+  ]
 
 
   if (isLoading) {

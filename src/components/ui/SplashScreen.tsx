@@ -1,29 +1,29 @@
-import { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
-import { Car, Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react'
+import { motion } from 'motion/react'
+import Car from 'lucide-react/dist/esm/icons/car'
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
 
 interface SplashScreenProps {
-  onComplete: () => void;
+  onComplete: () => void
 }
 
 export function SplashScreen({ onComplete }: SplashScreenProps) {
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(0)
 
   useEffect(() => {
-    // Simulate loading
     const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(onComplete, 500);
-          return 100;
+      setProgress(curr => {
+        if (curr >= 100) {
+          clearInterval(interval)
+          setTimeout(onComplete, 500)
+          return 100
         }
-        return prev + 10;
-      });
-    }, 150);
+        return curr + 10
+      })
+    }, 150)
 
-    return () => clearInterval(interval);
-  }, [onComplete]);
+    return () => clearInterval(interval)
+  }, [onComplete])
 
   return (
     <motion.div
@@ -164,5 +164,5 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
         LUXURY • COMFORT • EXCELLENCE
       </motion.div>
     </motion.div>
-  );
+  )
 }

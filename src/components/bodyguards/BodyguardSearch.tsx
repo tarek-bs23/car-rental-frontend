@@ -1,106 +1,111 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useApp } from '../../contexts/AppContext';
-import { TopBar } from '../layout/TopBar';
-import { BottomNav } from '../layout/BottomNav';
-import { Button } from '../ui/button';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { Star, Shield, Users, Clock, Calendar, ChevronRight, CheckCircle2, AlertCircle, X, Loader2 } from 'lucide-react';
-import { format, addDays } from 'date-fns';
-import { motion } from 'motion/react';
-import { Calendar as CalendarComponent } from '../ui/calendar';
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useApp } from '../../contexts/AppContext'
+import { TopBar } from '../layout/TopBar'
+import { BottomNav } from '../layout/BottomNav'
+import { Button } from '../ui/button'
+import { ImageWithFallback } from '../figma/ImageWithFallback'
+import Star from 'lucide-react/dist/esm/icons/star'
+import Shield from 'lucide-react/dist/esm/icons/shield'
+import Users from 'lucide-react/dist/esm/icons/users'
+import Clock from 'lucide-react/dist/esm/icons/clock'
+import Calendar from 'lucide-react/dist/esm/icons/calendar'
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right'
+import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2'
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
+import X from 'lucide-react/dist/esm/icons/x'
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
+import { format, addDays } from 'date-fns'
+import { motion } from 'motion/react'
+import { Calendar as CalendarComponent } from '../ui/calendar'
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from '../ui/sheet';
-import type { Bodyguard } from '../../contexts/AppContext';
-import { searchBodyguards, PricingType } from '../../lib/bodyguardSearch';
-import { toast } from 'sonner';
+} from '../ui/sheet'
+import type { Bodyguard } from '../../contexts/AppContext'
+import { searchBodyguards, PricingType } from '../../lib/bodyguardSearch'
+import { toast } from 'sonner'
 
 export function BodyguardSearch() {
-  const navigate = useNavigate();
-  const { selectedCity } = useApp();
-  const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('daily');
+  const navigate = useNavigate()
+  const { selectedCity } = useApp()
+  const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('daily')
 
-  // Date/Time state
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [startTime, setStartTime] = useState<string>('10:00');
-  const [endTime, setEndTime] = useState<string>('18:00');
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined)
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined)
+  const [startTime, setStartTime] = useState<string>('10:00')
+  const [endTime, setEndTime] = useState<string>('18:00')
+  const [showDatePicker, setShowDatePicker] = useState(false)
 
-  // API state
-  const [results, setResults] = useState<Bodyguard[]>([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [total, setTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const lastQueryRef = useRef<string>('');
+  const [results, setResults] = useState<Bodyguard[]>([])
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [total, setTotal] = useState(0)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const lastQueryRef = useRef<string>('')
 
   const durations = [
     { id: 'hourly', label: 'Hourly', icon: Clock, description: 'Short missions' },
     { id: 'daily', label: 'Daily', icon: Calendar, description: '1-6 days' },
     { id: 'weekly', label: 'Weekly', icon: Calendar, description: '7 days' },
     { id: 'monthly', label: 'Monthly', icon: Calendar, description: '30 days' },
-  ];
+  ]
 
-  // Get booking period based on duration type
   const getBookingPeriod = useCallback(() => {
-    if (!startDate) return null;
+    if (!startDate) return null
 
     switch (selectedDuration) {
       case 'hourly':
         return {
           start: startDate,
-          end: startDate // Same day for hourly
-        };
+          end: startDate
+        }
       case 'daily':
         return {
           start: startDate,
           end: endDate || startDate
-        };
+        }
       case 'weekly':
         return {
           start: startDate,
           end: addDays(startDate, 7)
-        };
+        }
       case 'monthly':
         return {
           start: startDate,
           end: addDays(startDate, 30)
-        };
+        }
     }
-  }, [startDate, endDate, selectedDuration]);
+  }, [startDate, endDate, selectedDuration])
 
-  // Build ISO dates for API
   const buildSearchDates = useCallback(() => {
-    const period = getBookingPeriod();
-    if (!period) return null;
+    const period = getBookingPeriod()
+    if (!period) return null
 
-    let startISO: string;
-    let endISO: string;
+    let startISO: string
+    let endISO: string
 
     if (selectedDuration === 'hourly') {
-      const [startHour, startMin] = startTime.split(':').map(Number);
-      const [endHour, endMin] = endTime.split(':').map(Number);
-      const start = new Date(period.start);
-      start.setHours(startHour, startMin, 0, 0);
-      const end = new Date(period.start);
-      end.setHours(endHour, endMin, 0, 0);
-      startISO = start.toISOString();
-      endISO = end.toISOString();
+      const [startHour, startMin] = startTime.split(':').map(Number)
+      const [endHour, endMin] = endTime.split(':').map(Number)
+      const start = new Date(period.start)
+      start.setHours(startHour, startMin, 0, 0)
+      const end = new Date(period.start)
+      end.setHours(endHour, endMin, 0, 0)
+      startISO = start.toISOString()
+      endISO = end.toISOString()
     } else {
-      startISO = period.start.toISOString();
-      endISO = period.end.toISOString();
+      startISO = period.start.toISOString()
+      endISO = period.end.toISOString()
     }
 
-    return { startISO, endISO };
-  }, [getBookingPeriod, selectedDuration, startTime, endTime]);
+    return { startISO, endISO }
+  }, [getBookingPeriod, selectedDuration, startTime, endTime])
 
   // Map duration to pricing type
   const getPricingType = useCallback(() => {
@@ -189,73 +194,70 @@ export function BodyguardSearch() {
     }
   };
 
-  // Handle duration change
-  const handleDurationChange = (newDuration: 'hourly' | 'daily' | 'weekly' | 'monthly') => {
-    setSelectedDuration(newDuration);
-    setStartDate(undefined);
-    setEndDate(undefined);
-    setResults([]);
-    setPage(1);
-    setHasMore(false);
-    setError(null);
-    lastQueryRef.current = '';
-    setShowDatePicker(false);
-  };
+  function handleDurationChange(newDuration: 'hourly' | 'daily' | 'weekly' | 'monthly') {
+    setSelectedDuration(newDuration)
+    setStartDate(undefined)
+    setEndDate(undefined)
+    setResults([])
+    setPage(1)
+    setHasMore(false)
+    setError(null)
+    lastQueryRef.current = ''
+    setShowDatePicker(false)
+  }
 
   const handleApplyDates = useCallback(() => {
-    if (!startDate || (selectedDuration === 'daily' && !endDate)) return;
+    if (!startDate || (selectedDuration === 'daily' && !endDate)) return
 
-    setShowDatePicker(false);
-    setResults([]);
-    setPage(1);
-    setHasMore(false);
-    setError(null);
-    lastQueryRef.current = '';
+    setShowDatePicker(false)
+    setResults([])
+    setPage(1)
+    setHasMore(false)
+    setError(null)
+    lastQueryRef.current = ''
 
     setTimeout(() => {
-      fetchBodyguards(1, true);
-    }, 100);
-  }, [startDate, endDate, selectedDuration, fetchBodyguards]);
+      fetchBodyguards(1, true)
+    }, 100)
+  }, [startDate, endDate, selectedDuration, fetchBodyguards])
 
-  // Format booking period for display
-  const formatBookingPeriod = () => {
-    if (!startDate) return 'Select dates';
+  function formatBookingPeriod() {
+    if (!startDate) return 'Select dates'
 
-    const period = getBookingPeriod();
-    if (!period) return 'Select dates';
+    const period = getBookingPeriod()
+    if (!period) return 'Select dates'
 
     if (selectedDuration === 'hourly') {
-      return `${format(startDate, 'MMM d')} • ${startTime} - ${endTime}`;
+      return `${format(startDate, 'MMM d')} • ${startTime} - ${endTime}`
     } else if (selectedDuration === 'daily') {
       if (endDate) {
-        return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`;
+        return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`
       }
-      return format(startDate, 'MMM d, yyyy');
+      return format(startDate, 'MMM d, yyyy')
     } else if (selectedDuration === 'weekly') {
-      return `${format(period.start, 'MMM d')} - ${format(period.end, 'MMM d')}`;
+      return `${format(period.start, 'MMM d')} - ${format(period.end, 'MMM d')}`
     } else {
-      return `${format(period.start, 'MMM d')} - ${format(period.end, 'MMM d')}`;
+      return `${format(period.start, 'MMM d')} - ${format(period.end, 'MMM d')}`
     }
-  };
+  }
 
-  const hasSelectedDates = startDate !== undefined;
+  const hasSelectedDates = startDate !== undefined
 
-  // Intersection observer for infinite scroll
   useEffect(() => {
-    if (!sentinelRef.current || !hasMore || isLoadingMore) return;
+    if (!sentinelRef.current || !hasMore || isLoadingMore) return
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
-          fetchBodyguards(page + 1, false);
+          fetchBodyguards(page + 1, false)
         }
       },
       { threshold: 0.1 }
-    );
+    )
 
-    observer.observe(sentinelRef.current);
-    return () => observer.disconnect();
-  }, [hasMore, isLoadingMore, page, fetchBodyguards]);
+    observer.observe(sentinelRef.current)
+    return () => observer.disconnect()
+  }, [hasMore, isLoadingMore, page, fetchBodyguards])
 
   return (
     <div className="min-h-screen bg-white pb-20">

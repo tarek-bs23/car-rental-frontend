@@ -1,31 +1,31 @@
-import React, { useState, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { toast } from 'sonner';
-import { apiJson } from '../../lib/api';
-import { endpoints } from '../../lib/endpoints';
-import { ChevronLeft } from 'lucide-react';
+import { useState, useCallback } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { Button } from '../ui/button'
+import { Input } from '../ui/input'
+import { Label } from '../ui/label'
+import { toast } from 'sonner'
+import { apiJson } from '../../lib/api'
+import { endpoints } from '../../lib/endpoints'
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left'
 
 interface VerifyOtpResponse {
-  resetToken: string;
+  resetToken: string
 }
 
 export function VerifyOtp() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const emailFromState = (location.state as { email?: string })?.email || '';
+  const navigate = useNavigate()
+  const location = useLocation()
+  const emailFromState = (location.state as { email?: string })?.email || ''
 
-  const [email, setEmail] = useState(emailFromState);
-  const [otp, setOtp] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState(emailFromState)
+  const [otp, setOtp] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isLoading || !email.trim() || !otp.trim()) return;
+    e.preventDefault()
+    if (isLoading || !email.trim() || !otp.trim()) return
 
-    setIsLoading(true);
+    setIsLoading(true)
 
     try {
       const response = await apiJson<VerifyOtpResponse>({
@@ -33,17 +33,17 @@ export function VerifyOtp() {
         method: 'POST',
         body: { email: email.trim(), otp: otp.trim() },
         skipAuth: true,
-      });
+      })
 
-      toast.success('OTP verified successfully');
-      navigate('/reset-password', { state: { resetToken: response.resetToken } });
+      toast.success('OTP verified successfully')
+      navigate('/reset-password', { state: { resetToken: response.resetToken } })
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Invalid OTP';
-      toast.error(message);
+      const message = error instanceof Error ? error.message : 'Invalid OTP'
+      toast.error(message)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [email, otp, isLoading, navigate]);
+  }, [email, otp, isLoading, navigate])
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -69,7 +69,7 @@ export function VerifyOtp() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {!emailFromState && (
+            {!emailFromState ? (
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -81,7 +81,7 @@ export function VerifyOtp() {
                   required
                 />
               </div>
-            )}
+            ) : null}
 
             <div className="space-y-2">
               <Label htmlFor="otp">Verification Code</Label>
@@ -112,5 +112,5 @@ export function VerifyOtp() {
         </div>
       </div>
     </div>
-  );
+  )
 }

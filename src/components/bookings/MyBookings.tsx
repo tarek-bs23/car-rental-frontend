@@ -1,187 +1,61 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useApp } from '../../contexts/AppContext';
-import { TopBar } from '../layout/TopBar';
-import { BottomNav } from '../layout/BottomNav';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { Button } from '../ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Badge } from '../ui/badge';
-import { Calendar, Car } from 'lucide-react';
-import { apiJson } from '../../lib/api';
-import { endpoints } from '../../lib/endpoints';
-import { BookingStatus } from '../../enums/booking';
+import { useEffect, useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useApp } from '../../contexts/AppContext'
+import { TopBar } from '../layout/TopBar'
+import { BottomNav } from '../layout/BottomNav'
+import { ImageWithFallback } from '../figma/ImageWithFallback'
+import { Button } from '../ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
+import { Badge } from '../ui/badge'
+import Calendar from 'lucide-react/dist/esm/icons/calendar'
+import Car from 'lucide-react/dist/esm/icons/car'
+import { apiJson } from '../../lib/api'
+import { endpoints } from '../../lib/endpoints'
+import { BookingStatus } from '../../enums/booking'
 
-type BookingType = 'VEHICLE' | 'DRIVER' | 'BODYGUARD';
+type BookingType = 'VEHICLE' | 'DRIVER' | 'BODYGUARD'
 
 interface BookingHistoryItem {
-  bookingType: BookingType;
-  bookingId: string;
-  displayName: string;
-  thumbnail?: string;
-  startDate: string;
-  endDate: string;
-  totalPrice: number;
-  addons: string[];
-  status: BookingStatus;
+  bookingType: BookingType
+  bookingId: string
+  displayName: string
+  thumbnail?: string
+  startDate: string
+  endDate: string
+  totalPrice: number
+  addons: string[]
+  status: BookingStatus
 }
 
 interface BookingHistoryResponse {
-  statusCode: number;
-  message: string;
-  data: BookingHistoryItem[];
+  statusCode: number
+  message: string
+  data: BookingHistoryItem[]
 }
 
-export function MyBookings() {
-  const navigate = useNavigate();
-  const { isAuthenticated } = useApp();
+function getStatusColor(status: BookingStatus) {
+  switch (status) {
+    case BookingStatus.CONFIRMED:
+    case BookingStatus.IN_PROGRESS:
+      return 'bg-green-100 text-green-800'
+    case BookingStatus.PENDING_AGENT_APPROVAL:
+    case BookingStatus.REFUND_PENDING:
+      return 'bg-yellow-100 text-yellow-800'
+    case BookingStatus.CANCELLED_BY_USER:
+    case BookingStatus.CANCELLED_BY_AGENT:
+    case BookingStatus.CANCELLED_BY_ADMIN:
+      return 'bg-red-100 text-red-800'
+    case BookingStatus.COMPLETED:
+    case BookingStatus.REFUNDED:
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}
 
-  const [bookings, setBookings] = useState<BookingHistoryItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setBookings([]);
-      return;
-    }
-
-    let mounted = true;
-
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await apiJson<BookingHistoryResponse>({
-          path: endpoints.bookings.history,
-        });
-        if (!mounted) return;
-        setBookings(Array.isArray(res.data) ? res.data : []);
-      } catch (e: any) {
-        if (!mounted) return;
-        setError(e?.message || 'Failed to load bookings');
-        setBookings([]);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    load();
-
-    return () => {
-      mounted = false;
-    };
-  }, [isAuthenticated]);
-
-  const now = new Date();
-
-  const isPastBooking = (booking: BookingHistoryItem) => {
-    const end = new Date(booking.endDate);
-    if (!isNaN(end.getTime()) && end < now) return true;
-
-    switch (booking.status) {
-      case BookingStatus.COMPLETED:
-      case BookingStatus.REFUNDED:
-      case BookingStatus.CANCELLED_BY_USER:
-      case BookingStatus.CANCELLED_BY_AGENT:
-      case BookingStatus.CANCELLED_BY_ADMIN:
-        return true;
-      default:
-        return false;
-    }
-  };
-
-  const isUpcomingBooking = (booking: BookingHistoryItem) => !isPastBooking(booking);
-
-  const upcomingBookings = bookings.filter(isUpcomingBooking);
-  const pastBookings = bookings.filter(isPastBooking);
-
-  const renderBookingCard = (booking: BookingHistoryItem) => {
-    const getStatusColor = (status: BookingStatus) => {
-      switch (status) {
-        case BookingStatus.CONFIRMED:
-        case BookingStatus.IN_PROGRESS:
-          return 'bg-green-100 text-green-800';
-        case BookingStatus.PENDING_AGENT_APPROVAL:
-        case BookingStatus.REFUND_PENDING:
-          return 'bg-yellow-100 text-yellow-800';
-        case BookingStatus.CANCELLED_BY_USER:
-        case BookingStatus.CANCELLED_BY_AGENT:
-        case BookingStatus.CANCELLED_BY_ADMIN:
-          return 'bg-red-100 text-red-800';
-        case BookingStatus.COMPLETED:
-        case BookingStatus.REFUNDED:
-        default:
-          return 'bg-gray-100 text-gray-800';
-      }
-    };
-
-    return (
-      <div
-        key={booking.bookingId}
-        className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-      >
-        {booking.thumbnail && (
-          <div className="relative aspect-[16/9]">
-            <ImageWithFallback
-              src={booking.thumbnail}
-              alt={booking.displayName}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute top-3 right-3">
-              <Badge className={getStatusColor(booking.status)}>
-                {booking.status.replace(/_/g, ' ')}
-              </Badge>
-            </div>
-          </div>
-        )}
-
-        <div className="p-4 space-y-3">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="text-gray-900">
-                Booking #{booking.bookingId.slice(-6)}
-              </h3>
-              <p className="text-blue-600">${booking.totalPrice}</p>
-            </div>
-            <p className="text-sm text-gray-600">{booking.displayName}</p>
-          </div>
-
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Calendar className="w-4 h-4" />
-            <span>
-              {new Date(booking.startDate).toLocaleDateString()} -{' '}
-              {new Date(booking.endDate).toLocaleDateString()}
-            </span>
-          </div>
-
-          {booking.addons.length > 0 && (
-            <div className="flex flex-wrap gap-2 text-xs">
-              {booking.addons.includes('DRIVER') && (
-                <Badge variant="secondary">Driver included</Badge>
-              )}
-              {booking.addons.includes('BODYGUARD') && (
-                <Badge variant="secondary">Security included</Badge>
-              )}
-            </div>
-          )}
-
-          <div className="flex gap-2 pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/booking/${booking.bookingId}`)}
-              className="flex-1"
-            >
-              View Details
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const EmptyState = ({ type }: { type: 'upcoming' | 'past' }) => (
+function EmptyState({ type }: { type: 'upcoming' | 'past' }) {
+  const navigate = useNavigate()
+  
+  return (
     <div className="flex flex-col items-center justify-center py-16 px-4">
       <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
         <Car className="w-10 h-10 text-gray-400" />
@@ -193,13 +67,146 @@ export function MyBookings() {
           : "You don't have any past bookings"
         }
       </p>
-      {type === 'upcoming' && (
+      {type === 'upcoming' ? (
         <Button onClick={() => navigate('/')}>
           Start Searching
         </Button>
-      )}
+      ) : null}
     </div>
-  );
+  )
+}
+
+function BookingCard({ booking, onViewDetails }: { booking: BookingHistoryItem; onViewDetails: () => void }) {
+  return (
+    <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      {booking.thumbnail ? (
+        <div className="relative aspect-[16/9]">
+          <ImageWithFallback
+            src={booking.thumbnail}
+            alt={booking.displayName}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute top-3 right-3">
+            <Badge className={getStatusColor(booking.status)}>
+              {booking.status.replace(/_/g, ' ')}
+            </Badge>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="p-4 space-y-3">
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-gray-900">
+              Booking #{booking.bookingId.slice(-6)}
+            </h3>
+            <p className="text-blue-600">${booking.totalPrice}</p>
+          </div>
+          <p className="text-sm text-gray-600">{booking.displayName}</p>
+        </div>
+
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Calendar className="w-4 h-4" />
+          <span>
+            {new Date(booking.startDate).toLocaleDateString()} -{' '}
+            {new Date(booking.endDate).toLocaleDateString()}
+          </span>
+        </div>
+
+        {booking.addons.length > 0 ? (
+          <div className="flex flex-wrap gap-2 text-xs">
+            {booking.addons.includes('DRIVER') ? (
+              <Badge variant="secondary">Driver included</Badge>
+            ) : null}
+            {booking.addons.includes('BODYGUARD') ? (
+              <Badge variant="secondary">Security included</Badge>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="flex gap-2 pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onViewDetails}
+            className="flex-1"
+          >
+            View Details
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function MyBookings() {
+  const navigate = useNavigate()
+  const { isAuthenticated } = useApp()
+
+  const [bookings, setBookings] = useState<BookingHistoryItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setBookings([])
+      return
+    }
+
+    let mounted = true
+
+    async function load() {
+      try {
+        setLoading(true)
+        setError(null)
+        const res = await apiJson<BookingHistoryResponse>({
+          path: endpoints.bookings.history,
+        })
+        if (!mounted) return
+        setBookings(Array.isArray(res.data) ? res.data : [])
+      } catch (e: unknown) {
+        if (!mounted) return
+        setError(e instanceof Error ? e.message : 'Failed to load bookings')
+        setBookings([])
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+
+    load()
+
+    return () => {
+      mounted = false
+    }
+  }, [isAuthenticated])
+
+  const now = useMemo(() => new Date(), [])
+
+  function isPastBooking(booking: BookingHistoryItem) {
+    const end = new Date(booking.endDate)
+    if (!isNaN(end.getTime()) && end < now) return true
+
+    switch (booking.status) {
+      case BookingStatus.COMPLETED:
+      case BookingStatus.REFUNDED:
+      case BookingStatus.CANCELLED_BY_USER:
+      case BookingStatus.CANCELLED_BY_AGENT:
+      case BookingStatus.CANCELLED_BY_ADMIN:
+        return true
+      default:
+        return false
+    }
+  }
+
+  const upcomingBookings = useMemo(() => 
+    bookings.filter(b => !isPastBooking(b)),
+    [bookings, now]
+  )
+  
+  const pastBookings = useMemo(() => 
+    bookings.filter(isPastBooking),
+    [bookings, now]
+  )
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -227,7 +234,13 @@ export function MyBookings() {
               ) : upcomingBookings.length === 0 ? (
                 <EmptyState type="upcoming" />
               ) : (
-                upcomingBookings.map(renderBookingCard)
+                upcomingBookings.map((booking) => (
+                  <BookingCard
+                    key={booking.bookingId}
+                    booking={booking}
+                    onViewDetails={() => navigate(`/booking/${booking.bookingId}`)}
+                  />
+                ))
               )}
             </TabsContent>
 
@@ -239,7 +252,13 @@ export function MyBookings() {
               ) : pastBookings.length === 0 ? (
                 <EmptyState type="past" />
               ) : (
-                pastBookings.map(renderBookingCard)
+                pastBookings.map((booking) => (
+                  <BookingCard
+                    key={booking.bookingId}
+                    booking={booking}
+                    onViewDetails={() => navigate(`/booking/${booking.bookingId}`)}
+                  />
+                ))
               )}
             </TabsContent>
           </Tabs>
@@ -248,5 +267,5 @@ export function MyBookings() {
 
       <BottomNav />
     </div>
-  );
+  )
 }

@@ -1,91 +1,89 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button } from '../ui/button';
-import { CheckCircle2, Copy } from 'lucide-react';
-import { toast } from 'sonner';
-import confetti from 'canvas-confetti';
-import React from 'react';
-import { apiJson } from '../../lib/api';
-import { endpoints } from '../../lib/endpoints';
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Button } from '../ui/button'
+import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2'
+import Copy from 'lucide-react/dist/esm/icons/copy'
+import { toast } from 'sonner'
+import confetti from 'canvas-confetti'
+import { apiJson } from '../../lib/api'
+import { endpoints } from '../../lib/endpoints'
 
 export function BookingConfirmation() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const intentId = searchParams.get('intentId');
-  const [bookingId, setBookingId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const intentId = searchParams.get('intentId')
+  const [bookingId, setBookingId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Celebration confetti
     confetti({
       particleCount: 100,
       spread: 70,
       origin: { y: 0.6 }
-    });
-  }, []);
+    })
+  }, [])
 
   useEffect(() => {
     if (!intentId) {
-      setIsLoading(false);
-      return;
+      setIsLoading(false)
+      return
     }
 
     type CheckoutStatusResponse = {
-      statusCode: number;
-      message: string;
+      statusCode: number
+      message: string
       data: {
-        intentId: string;
-        status: string;
-        totalAmount: number;
-        currency: string;
-        paymentStatus: string;
-        paymentAttemptId: string;
+        intentId: string
+        status: string
+        totalAmount: number
+        currency: string
+        paymentStatus: string
+        paymentAttemptId: string
         bookings: {
-          bookingId: string;
-          bookingType: string;
-          resourceId: string;
-          startDate: string;
-          endDate: string;
-          totalPrice: number;
-        }[];
-        failureReason: string | null;
-        timestamp: string;
-      };
-    };
+          bookingId: string
+          bookingType: string
+          resourceId: string
+          startDate: string
+          endDate: string
+          totalPrice: number
+        }[]
+        failureReason: string | null
+        timestamp: string
+      }
+    }
 
-    const fetchStatus = async () => {
+    async function fetchStatus() {
       try {
         const response = await apiJson<CheckoutStatusResponse>({
           path: endpoints.checkoutById(intentId),
-        });
+        })
 
-        const firstBookingId = response?.data?.bookings?.[0]?.bookingId;
-        setBookingId(firstBookingId || intentId);
+        const firstBookingId = response?.data?.bookings?.[0]?.bookingId
+        setBookingId(firstBookingId || intentId)
       } catch (error) {
-        console.error('Failed to load checkout status:', error);
+        console.error('Failed to load checkout status:', error)
         toast.error(
           error instanceof Error ? error.message : 'Failed to load booking details.'
-        );
-        setBookingId(intentId);
+        )
+        setBookingId(intentId)
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
+    }
 
-    fetchStatus();
-  }, [intentId]);
+    fetchStatus()
+  }, [intentId])
 
-  const handleCopyBookingId = () => {
-    if (!bookingId) return;
-    navigator.clipboard.writeText(bookingId);
-    toast.success('Booking ID copied!');
-  };
+  function handleCopyBookingId() {
+    if (!bookingId) return
+    navigator.clipboard.writeText(bookingId)
+    toast.success('Booking ID copied!')
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-green-50 to-white">
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="w-full max-w-md space-y-8">
-          {/* Success Icon */}
           <div className="text-center space-y-4">
             <div className="w-24 h-24 mx-auto">
               <CheckCircle2 className="w-full h-full text-green-600" />
@@ -99,7 +97,6 @@ export function BookingConfirmation() {
             </div>
           </div>
 
-          {/* Booking ID */}
           <div className="bg-white rounded-xl p-6 shadow-sm space-y-4">
             <div>
               <p className="text-sm text-gray-500 mb-1">Booking ID</p>
@@ -126,7 +123,6 @@ export function BookingConfirmation() {
             </div>
           </div>
 
-          {/* Quick Summary */}
           <div className="bg-blue-50 rounded-xl p-4 space-y-2">
             <h3 className="text-blue-900">What's Next?</h3>
             <ul className="space-y-1 text-sm text-blue-800">
@@ -136,7 +132,6 @@ export function BookingConfirmation() {
             </ul>
           </div>
 
-          {/* CTAs */}
           <div className="space-y-3 pt-4">
             <Button
               onClick={() => navigate('/bookings')}
@@ -156,5 +151,5 @@ export function BookingConfirmation() {
         </div>
       </div>
     </div>
-  );
+  )
 }

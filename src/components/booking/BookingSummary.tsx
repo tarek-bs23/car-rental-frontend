@@ -1,9 +1,11 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useApp } from '../../contexts/AppContext';
-import { Button } from '../ui/button';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { ChevronLeft, AlertCircle, Calendar } from 'lucide-react';
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useApp } from '../../contexts/AppContext'
+import { Button } from '../ui/button'
+import { ImageWithFallback } from '../figma/ImageWithFallback'
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left'
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
+import Calendar from 'lucide-react/dist/esm/icons/calendar'
 import {
   Dialog,
   DialogContent,
@@ -11,9 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '../ui/dialog';
-import { format } from 'date-fns';
-import React from 'react';
+} from '../ui/dialog'
+import { format } from 'date-fns'
 
 export function BookingSummary() {
   const navigate = useNavigate();

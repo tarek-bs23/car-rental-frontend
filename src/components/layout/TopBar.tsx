@@ -1,85 +1,89 @@
-import { MapPin, Bell, ShoppingCart } from 'lucide-react';
-import { useApp } from '../../contexts/AppContext';
-import { useNavigate } from 'react-router-dom';
+import MapPin from 'lucide-react/dist/esm/icons/map-pin'
+import Bell from 'lucide-react/dist/esm/icons/bell'
+import ShoppingCart from 'lucide-react/dist/esm/icons/shopping-cart'
+import { useApp } from '../../contexts/AppContext'
+import { useNavigate } from 'react-router-dom'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../ui/select';
-import React, { useState, useEffect } from 'react';
-import { apiJson } from '../../lib/api';
-import { endpoints } from '../../lib/endpoints';
+} from '../ui/select'
+import { useState, useEffect } from 'react'
+import { apiJson } from '../../lib/api'
+import { endpoints } from '../../lib/endpoints'
 
 interface City {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 interface CitiesResponse {
-  statusCode: number;
-  message: string;
-  data: City[];
+  statusCode: number
+  message: string
+  data: City[]
 }
 
 export function TopBar() {
-  const { selectedCity, setSelectedCity, cart, user } = useApp();
-  const navigate = useNavigate();
-  const [cities, setCities] = useState<City[]>([]);
-  const [isCitiesLoading, setIsCitiesLoading] = useState(true);
+  const { selectedCity, setSelectedCity, cart, user } = useApp()
+  const navigate = useNavigate()
+  const [cities, setCities] = useState<City[]>([])
+  const [isCitiesLoading, setIsCitiesLoading] = useState(true)
 
   useEffect(() => {
-    let isMounted = true;
+    let isMounted = true
 
     async function loadCities() {
-      setIsCitiesLoading(true);
+      setIsCitiesLoading(true)
 
       try {
         const response = await apiJson<CitiesResponse>({
           path: endpoints.auth.publicCities,
           skipAuth: true,
-        });
+        })
 
-        if (!isMounted) return;
+        if (!isMounted) return
 
-        setCities(response.data || []);
+        setCities(response.data || [])
       } catch (error) {
-        if (!isMounted) return;
-        console.error('Failed to load cities:', error);
+        if (!isMounted) return
+        console.error('Failed to load cities:', error)
       } finally {
-        if (!isMounted) return;
-        setIsCitiesLoading(false);
+        if (!isMounted) return
+        setIsCitiesLoading(false)
       }
     }
 
-    loadCities();
+    loadCities()
 
     return () => {
-      isMounted = false;
-    };
-  }, []);
+      isMounted = false
+    }
+  }, [])
 
   useEffect(() => {
-    if (cities.length === 0 || isCitiesLoading) return;
+    if (cities.length === 0 || isCitiesLoading) return
 
-    const currentCity = cities.find(city => city.id === selectedCity);
-    if (currentCity) return;
+    const currentCity = cities.find(city => city.id === selectedCity)
+    if (currentCity) return
 
     if (user?.city) {
-      const userCityExists = cities.find(city => city.id === user.city);
+      const userCityExists = cities.find(city => city.id === user.city)
       if (userCityExists) {
-        setSelectedCity(user.city);
-        return;
+        setSelectedCity(user.city)
+        return
       }
     }
 
-    const cityByName = cities.find(city => city.name === selectedCity);
-    const defaultCity = cityByName || cities[0];
+    const cityByName = cities.find(city => city.name === selectedCity)
+    const defaultCity = cityByName || cities[0]
     if (defaultCity) {
-      setSelectedCity(defaultCity.id);
+      setSelectedCity(defaultCity.id)
     }
-  }, [cities, isCitiesLoading, user?.city, selectedCity, setSelectedCity]);
+  }, [cities, isCitiesLoading, user?.city, selectedCity, setSelectedCity])
+
+  const cartCount = cart.length
 
   return (
     <header className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-40">
@@ -105,20 +109,18 @@ export function TopBar() {
         </div>
 
         <div className="flex items-center gap-1">
-          {/* Cart Icon */}
           <button
             onClick={() => navigate('/booking/cart')}
             className="p-2 hover:bg-gray-100 rounded-full relative"
           >
             <ShoppingCart className="w-5 h-5 text-gray-700" />
-            {cart.length > 0 && (
+            {cartCount > 0 ? (
               <span className="absolute top-0 right-0 w-5 h-5 bg-[#d4af37] text-white text-xs font-bold rounded-full flex items-center justify-center">
-                {cart.length}
+                {cartCount}
               </span>
-            )}
+            ) : null}
           </button>
 
-          {/* Notifications */}
           <button className="p-2 hover:bg-gray-100 rounded-full relative">
             <Bell className="w-5 h-5 text-gray-700" />
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
@@ -126,5 +128,5 @@ export function TopBar() {
         </div>
       </div>
     </header>
-  );
+  )
 }

@@ -1,17 +1,14 @@
-import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { Button } from '../ui/button';
-import { useNavigate } from 'react-router-dom';
-import React from 'react';
-
+import { ImageWithFallback } from '../figma/ImageWithFallback'
+import { Button } from '../ui/button'
+import { useNavigate } from 'react-router-dom'
 
 export function AppLaunch() {
-  const navigate = useNavigate();
+  const navigate = useNavigate()
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="w-full max-w-md space-y-8">
-          {/* Hero Visual */}
           <div className="text-center space-y-4">
             <div className="w-24 h-24 mx-auto bg-blue-600 rounded-3xl flex items-center justify-center">
               <svg className="w-14 h-14 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -24,7 +21,6 @@ export function AppLaunch() {
             </p>
           </div>
 
-          {/* Hero Image */}
           <div className="rounded-2xl overflow-hidden shadow-lg">
             <ImageWithFallback
               src="https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800"
@@ -33,7 +29,6 @@ export function AppLaunch() {
             />
           </div>
 
-          {/* CTAs */}
           <div className="space-y-3">
             <Button
               onClick={() => navigate('/register')}
@@ -52,5 +47,5 @@ export function AppLaunch() {
         </div>
       </div>
     </div>
-  );
+  )
 }

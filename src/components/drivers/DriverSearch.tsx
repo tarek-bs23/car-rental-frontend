@@ -1,136 +1,137 @@
-import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useApp } from '../../contexts/AppContext';
-import { TopBar } from '../layout/TopBar';
-import { BottomNav } from '../layout/BottomNav';
-import { Button } from '../ui/button';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { Star, Award, Clock, Calendar, ChevronRight, CheckCircle2, AlertCircle, X, Loader2 } from 'lucide-react';
-import { format, addDays } from 'date-fns';
-import { motion } from 'motion/react';
-import { Calendar as CalendarComponent } from '../ui/calendar';
+import { useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useApp } from '../../contexts/AppContext'
+import { TopBar } from '../layout/TopBar'
+import { BottomNav } from '../layout/BottomNav'
+import { Button } from '../ui/button'
+import { ImageWithFallback } from '../figma/ImageWithFallback'
+import Star from 'lucide-react/dist/esm/icons/star'
+import Award from 'lucide-react/dist/esm/icons/award'
+import Clock from 'lucide-react/dist/esm/icons/clock'
+import Calendar from 'lucide-react/dist/esm/icons/calendar'
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right'
+import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2'
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
+import X from 'lucide-react/dist/esm/icons/x'
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
+import { format, addDays } from 'date-fns'
+import { motion } from 'motion/react'
+import { Calendar as CalendarComponent } from '../ui/calendar'
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from '../ui/sheet';
-import React from 'react';
-import { searchDrivers, PricingType } from '../../lib/driverSearch';
-import type { Driver } from '../../contexts/AppContext';
-import { toast } from 'sonner';
+} from '../ui/sheet'
+import { searchDrivers, PricingType } from '../../lib/driverSearch'
+import type { Driver } from '../../contexts/AppContext'
+import { toast } from 'sonner'
 
 export function DriverSearch() {
-  const navigate = useNavigate();
-  const { selectedCity } = useApp();
-  const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('daily');
+  const navigate = useNavigate()
+  const { selectedCity } = useApp()
+  const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('daily')
 
-  // Date/Time state
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [startTime, setStartTime] = useState<string>('10:00');
-  const [endTime, setEndTime] = useState<string>('18:00');
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined)
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined)
+  const [startTime, setStartTime] = useState<string>('10:00')
+  const [endTime, setEndTime] = useState<string>('18:00')
+  const [showDatePicker, setShowDatePicker] = useState(false)
 
-  // API state
-  const [results, setResults] = useState<Driver[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [datesApplied, setDatesApplied] = useState(false);
-  const [total, setTotal] = useState(0);
+  const [results, setResults] = useState<Driver[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [datesApplied, setDatesApplied] = useState(false)
+  const [total, setTotal] = useState(0)
 
   const durations = [
     { id: 'hourly', label: 'Hourly', icon: Clock, description: 'Short trips' },
     { id: 'daily', label: 'Daily', icon: Calendar, description: '1-6 days' },
     { id: 'weekly', label: 'Weekly', icon: Calendar, description: '7 days' },
     { id: 'monthly', label: 'Monthly', icon: Calendar, description: '30 days' },
-  ];
+  ]
 
-  // Mock availability checker
-  const checkDriverAvailability = (driverId: string, start: Date, end: Date) => {
-    const unavailableDrivers = ['2', '4'];
-    const hasConflict = unavailableDrivers.includes(driverId);
+  function checkDriverAvailability(driverId: string, start: Date, end: Date) {
+    const unavailableDrivers = ['2', '4']
+    const hasConflict = unavailableDrivers.includes(driverId)
 
     if (hasConflict) {
-      const conflictDay = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24) / 2);
+      const conflictDay = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24) / 2)
       return {
         available: false,
         conflictDate: addDays(start, conflictDay)
-      };
+      }
     }
 
-    return { available: true, conflictDate: null };
-  };
+    return { available: true, conflictDate: null }
+  }
 
-  // Get booking period based on duration type
-  const getBookingPeriod = () => {
-    if (!startDate) return null;
+  function getBookingPeriod() {
+    if (!startDate) return null
 
     switch (selectedDuration) {
       case 'hourly':
         return {
           start: startDate,
-          end: startDate // Same day for hourly
-        };
+          end: startDate
+        }
       case 'daily':
         return {
           start: startDate,
           end: endDate || startDate
-        };
+        }
       case 'weekly':
         return {
           start: startDate,
           end: addDays(startDate, 7)
-        };
+        }
       case 'monthly':
         return {
           start: startDate,
           end: addDays(startDate, 30)
-        };
+        }
     }
-  };
+  }
 
-  // Build ISO dates for API
   const buildSearchDates = useCallback(() => {
-    const period = getBookingPeriod();
-    if (!period) return null;
+    const period = getBookingPeriod()
+    if (!period) return null
 
-    let startISO: string;
-    let endISO: string;
+    let startISO: string
+    let endISO: string
 
     if (selectedDuration === 'hourly') {
-      const [startHour, startMin] = startTime.split(':').map(Number);
-      const [endHour, endMin] = endTime.split(':').map(Number);
-      const start = new Date(period.start);
-      start.setHours(startHour, startMin, 0, 0);
-      const end = new Date(period.start);
-      end.setHours(endHour, endMin, 0, 0);
-      startISO = start.toISOString();
-      endISO = end.toISOString();
+      const [startHour, startMin] = startTime.split(':').map(Number)
+      const [endHour, endMin] = endTime.split(':').map(Number)
+      const start = new Date(period.start)
+      start.setHours(startHour, startMin, 0, 0)
+      const end = new Date(period.start)
+      end.setHours(endHour, endMin, 0, 0)
+      startISO = start.toISOString()
+      endISO = end.toISOString()
     } else {
-      startISO = period.start.toISOString();
-      endISO = period.end.toISOString();
+      startISO = period.start.toISOString()
+      endISO = period.end.toISOString()
     }
 
-    return { startISO, endISO };
-  }, [getBookingPeriod, selectedDuration, startTime, endTime]);
+    return { startISO, endISO }
+  }, [selectedDuration, startTime, endTime])
 
-  // Map duration to pricing type
   const getPricingType = useCallback(() => {
     switch (selectedDuration) {
-      case 'hourly': return PricingType.HOURLY;
-      case 'daily': return PricingType.DAILY;
-      case 'weekly': return PricingType.WEEKLY;
-      case 'monthly': return PricingType.MONTHLY;
+      case 'hourly': return PricingType.HOURLY
+      case 'daily': return PricingType.DAILY
+      case 'weekly': return PricingType.WEEKLY
+      case 'monthly': return PricingType.MONTHLY
     }
-  }, [selectedDuration]);
+  }, [selectedDuration])
 
   const fetchDrivers = useCallback(async () => {
-    const dates = buildSearchDates();
-    if (!selectedCity || !dates) return;
+    const dates = buildSearchDates()
+    if (!selectedCity || !dates) return
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
       const result = await searchDrivers({
@@ -140,102 +141,98 @@ export function DriverSearch() {
         pricingType: getPricingType(),
         page: 1,
         limit: 20,
-      });
+      })
 
-      setResults(result.drivers);
-      setTotal(result.total ?? result.drivers.length);
+      setResults(result.drivers)
+      setTotal(result.total ?? result.drivers.length)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load drivers';
-      setError(message);
-      setResults([]);
-      toast.error(message);
+      const message = err instanceof Error ? err.message : 'Failed to load drivers'
+      setError(message)
+      setResults([])
+      toast.error(message)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [selectedCity, buildSearchDates, getPricingType]);
+  }, [selectedCity, buildSearchDates, getPricingType])
 
-  const handleApplyDates = () => {
-    if (!startDate || (selectedDuration === 'daily' && !endDate)) return;
+  function handleApplyDates() {
+    if (!startDate || (selectedDuration === 'daily' && !endDate)) return
 
-    setShowDatePicker(false);
-    setDatesApplied(true);
-    setResults([]);
-    setError(null);
+    setShowDatePicker(false)
+    setDatesApplied(true)
+    setResults([])
+    setError(null)
 
-    fetchDrivers();
-  };
+    fetchDrivers()
+  }
 
-  // Sort drivers by availability
   const sortedDrivers = startDate ? [...results].sort((a, b) => {
-    const period = getBookingPeriod();
-    if (!period) return 0;
+    const period = getBookingPeriod()
+    if (!period) return 0
 
-    const aAvailability = checkDriverAvailability(a.id, period.start, period.end);
-    const bAvailability = checkDriverAvailability(b.id, period.start, period.end);
+    const aAvailability = checkDriverAvailability(a.id, period.start, period.end)
+    const bAvailability = checkDriverAvailability(b.id, period.start, period.end)
 
-    if (aAvailability.available && !bAvailability.available) return -1;
-    if (!aAvailability.available && bAvailability.available) return 1;
-    return 0;
-  }) : results;
+    if (aAvailability.available && !bAvailability.available) return -1
+    if (!aAvailability.available && bAvailability.available) return 1
+    return 0
+  }) : results
 
-  // Calculate price based on selected duration
-  const getPrice = (driver: Driver) => {
-    const period = getBookingPeriod();
+  function getPrice(driver: Driver) {
+    const period = getBookingPeriod()
     if (!period || !startDate) {
-      return { amount: driver.pricePerHour, unit: '/hr' };
+      return { amount: driver.pricePerHour, unit: '/hr' }
     }
 
     switch (selectedDuration) {
       case 'hourly':
-        const [startHr, startMin] = startTime.split(':').map(Number);
-        const [endHr, endMin] = endTime.split(':').map(Number);
-        const hours = (endHr - startHr) + (endMin - startMin) / 60;
-        return { amount: Math.ceil(driver.pricePerHour * hours), unit: '' };
+        const [startHr, startMin] = startTime.split(':').map(Number)
+        const [endHr, endMin] = endTime.split(':').map(Number)
+        const hours = (endHr - startHr) + (endMin - startMin) / 60
+        return { amount: Math.ceil(driver.pricePerHour * hours), unit: '' }
       case 'daily':
-        const days = endDate ? Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1) : 1;
-        return { amount: driver.pricePerHour * 8 * days, unit: '' }; // 8hr/day
+        const days = endDate ? Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1) : 1
+        return { amount: driver.pricePerHour * 8 * days, unit: '' }
       case 'weekly':
-        return { amount: driver.pricePerHour * 8 * 7, unit: '' };
+        return { amount: driver.pricePerHour * 8 * 7, unit: '' }
       case 'monthly':
-        return { amount: driver.pricePerHour * 8 * 30, unit: '' };
+        return { amount: driver.pricePerHour * 8 * 30, unit: '' }
       default:
-        return { amount: driver.pricePerHour, unit: '/hr' };
+        return { amount: driver.pricePerHour, unit: '/hr' }
     }
-  };
+  }
 
-  // Handle duration change
-  const handleDurationChange = (newDuration: 'hourly' | 'daily' | 'weekly' | 'monthly') => {
-    setSelectedDuration(newDuration);
-    setStartDate(undefined);
-    setEndDate(undefined);
-    setDatesApplied(false);
-    setResults([]);
-    setError(null);
-    setShowDatePicker(false);
-  };
+  function handleDurationChange(newDuration: 'hourly' | 'daily' | 'weekly' | 'monthly') {
+    setSelectedDuration(newDuration)
+    setStartDate(undefined)
+    setEndDate(undefined)
+    setDatesApplied(false)
+    setResults([])
+    setError(null)
+    setShowDatePicker(false)
+  }
 
-  // Format booking period for display
-  const formatBookingPeriod = () => {
-    if (!startDate) return 'Select dates';
+  function formatBookingPeriod() {
+    if (!startDate) return 'Select dates'
 
-    const period = getBookingPeriod();
-    if (!period) return 'Select dates';
+    const period = getBookingPeriod()
+    if (!period) return 'Select dates'
 
     if (selectedDuration === 'hourly') {
-      return `${format(startDate, 'MMM d')} • ${startTime} - ${endTime}`;
+      return `${format(startDate, 'MMM d')} • ${startTime} - ${endTime}`
     } else if (selectedDuration === 'daily') {
       if (endDate) {
-        return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`;
+        return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`
       }
-      return format(startDate, 'MMM d, yyyy');
+      return format(startDate, 'MMM d, yyyy')
     } else if (selectedDuration === 'weekly') {
-      return `${format(period.start, 'MMM d')} - ${format(period.end, 'MMM d')}`;
+      return `${format(period.start, 'MMM d')} - ${format(period.end, 'MMM d')}`
     } else {
-      return `${format(period.start, 'MMM d')} - ${format(period.end, 'MMM d')}`;
+      return `${format(period.start, 'MMM d')} - ${format(period.end, 'MMM d')}`
     }
-  };
+  }
 
-  const hasSelectedDates = startDate !== undefined;
+  const hasSelectedDates = startDate !== undefined
 
   return (
     <div className="min-h-screen bg-white pb-20">

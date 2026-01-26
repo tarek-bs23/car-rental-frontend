@@ -1,95 +1,100 @@
-import { useNavigate } from 'react-router-dom';
-import { useApp } from '../../contexts/AppContext';
-import { Button } from '../ui/button';
-import { ChevronLeft, ShoppingCart, AlertCircle } from 'lucide-react';
-import { ServiceCartItem } from './ServiceCartItem';
-import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'
+import { useApp } from '../../contexts/AppContext'
+import { Button } from '../ui/button'
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left'
+import ShoppingCart from 'lucide-react/dist/esm/icons/shopping-cart'
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
+import { ServiceCartItem } from './ServiceCartItem'
+import { useEffect, useMemo } from 'react'
 
 export function ServiceCart() {
-  const navigate = useNavigate();
-  const { cart, vehicles, drivers, bodyguards, updateCartItem, removeFromCart, bookings, loadCart } = useApp();
+  const navigate = useNavigate()
+  const { cart, vehicles, drivers, bodyguards, updateCartItem, removeFromCart, bookings, loadCart } = useApp()
 
   useEffect(() => {
-    loadCart();
-  }, [loadCart]);
+    loadCart()
+  }, [loadCart])
 
-  const vehicleItem = cart.find(item => item.type === 'vehicle');
-  const driverItem = cart.find(item => item.type === 'driver');
-  const bodyguardItem = cart.find(item => item.type === 'bodyguard');
+  const vehicleItem = cart.find(item => item.type === 'vehicle')
+  const driverItem = cart.find(item => item.type === 'driver')
+  const bodyguardItem = cart.find(item => item.type === 'bodyguard')
 
-  const vehicle = vehicleItem ? vehicles.find(v => v.id === vehicleItem.serviceId) : null;
-  const driver = driverItem ? drivers.find(d => d.id === driverItem.serviceId) : null;
-  const bodyguard = bodyguardItem ? bodyguards.find(b => b.id === bodyguardItem.serviceId) : null;
+  const vehicle = vehicleItem ? vehicles.find(v => v.id === vehicleItem.serviceId) : null
+  const driver = driverItem ? drivers.find(d => d.id === driverItem.serviceId) : null
+  const bodyguard = bodyguardItem ? bodyguards.find(b => b.id === bodyguardItem.serviceId) : null
 
-  // Check if user has active vehicle bookings (confirmed or completed)
-  const hasActiveVehicleBooking = bookings.some(
-    booking => booking.vehicleId && (booking.status === 'confirmed' || booking.status === 'completed')
-  );
+  const hasActiveVehicleBooking = useMemo(() => 
+    bookings.some(
+      booking => booking.vehicleId && (booking.status === 'confirmed' || booking.status === 'completed')
+    ),
+    [bookings]
+  )
 
-  // Check if vehicle exists in cart OR user has active vehicle booking for bundle discount eligibility
-  const hasVehicle = !!vehicleItem || hasActiveVehicleBooking;
+  const hasVehicle = !!vehicleItem || hasActiveVehicleBooking
 
-  // Check driver-vehicle compatibility
   const isDriverCompatible = !vehicle || !driver ||
     driver.compatibleVehicles.includes('All Types') ||
-    driver.compatibleVehicles.includes(vehicle.category);
+    driver.compatibleVehicles.includes(vehicle.category)
 
-  const hasCompatibilityIssue = vehicle && driver && !isDriverCompatible;
+  const hasCompatibilityIssue = vehicle && driver && !isDriverCompatible
 
-  // Discount rates
-  const DRIVER_DISCOUNT = 0.10; // 10% off
-  const BODYGUARD_DISCOUNT = 0.15; // 15% off
+  const vehiclePrice = useMemo(() =>
+    cart
+      .filter(item => item.type === 'vehicle')
+      .reduce((sum, item) => sum + (item.totalPrice ?? 0), 0),
+    [cart]
+  )
 
-  // Use pricing attached to cart items from backend (no re-calculation)
-  const vehiclePrice = cart
-    .filter(item => item.type === 'vehicle')
-    .reduce((sum, item) => sum + (item.totalPrice ?? 0), 0);
+  const driverOriginalPrice = useMemo(() =>
+    cart
+      .filter(item => item.type === 'driver')
+      .reduce((sum, item) => sum + (item.totalPrice ?? 0), 0),
+    [cart]
+  )
 
-  const driverOriginalPrice = cart
-    .filter(item => item.type === 'driver')
-    .reduce((sum, item) => sum + (item.totalPrice ?? 0), 0);
+  const bodyguardOriginalPrice = useMemo(() =>
+    cart
+      .filter(item => item.type === 'bodyguard')
+      .reduce((sum, item) => sum + (item.totalPrice ?? 0), 0),
+    [cart]
+  )
 
-  const bodyguardOriginalPrice = cart
-    .filter(item => item.type === 'bodyguard')
-    .reduce((sum, item) => sum + (item.totalPrice ?? 0), 0);
+  const subtotal = vehiclePrice + driverOriginalPrice + bodyguardOriginalPrice
+  const total = subtotal
+  const totalDiscount = 0
 
-  const subtotal = vehiclePrice + driverOriginalPrice + bodyguardOriginalPrice;
-  const total = subtotal;
-  const totalDiscount = 0;
-
-  const handleContinue = () => {
-    // Navigate to booking summary with all cart items
-    const params = new URLSearchParams();
+  function handleContinue() {
+    const params = new URLSearchParams()
 
     if (vehicleItem && vehicle) {
-      params.set('vehicleId', vehicle.id);
-      params.set('vehicleDuration', vehicleItem.duration);
-      params.set('vehicleStartDate', vehicleItem.startDate.toISOString());
-      if (vehicleItem.endDate) params.set('vehicleEndDate', vehicleItem.endDate.toISOString());
-      params.set('vehicleStartTime', vehicleItem.startTime);
-      params.set('vehicleEndTime', vehicleItem.endTime);
+      params.set('vehicleId', vehicle.id)
+      params.set('vehicleDuration', vehicleItem.duration)
+      params.set('vehicleStartDate', vehicleItem.startDate.toISOString())
+      if (vehicleItem.endDate) params.set('vehicleEndDate', vehicleItem.endDate.toISOString())
+      params.set('vehicleStartTime', vehicleItem.startTime)
+      params.set('vehicleEndTime', vehicleItem.endTime)
     }
 
     if (driverItem && driver) {
-      params.set('driverId', driver.id);
-      params.set('driverDuration', driverItem.duration);
-      params.set('driverStartDate', driverItem.startDate.toISOString());
-      if (driverItem.endDate) params.set('driverEndDate', driverItem.endDate.toISOString());
-      params.set('driverStartTime', driverItem.startTime);
-      params.set('driverEndTime', driverItem.endTime);
+      params.set('driverId', driver.id)
+      params.set('driverDuration', driverItem.duration)
+      params.set('driverStartDate', driverItem.startDate.toISOString())
+      if (driverItem.endDate) params.set('driverEndDate', driverItem.endDate.toISOString())
+      params.set('driverStartTime', driverItem.startTime)
+      params.set('driverEndTime', driverItem.endTime)
     }
 
     if (bodyguardItem && bodyguard) {
-      params.set('bodyguardId', bodyguard.id);
-      params.set('bodyguardDuration', bodyguardItem.duration);
-      params.set('bodyguardStartDate', bodyguardItem.startDate.toISOString());
-      if (bodyguardItem.endDate) params.set('bodyguardEndDate', bodyguardItem.endDate.toISOString());
-      params.set('bodyguardStartTime', bodyguardItem.startTime);
-      params.set('bodyguardEndTime', bodyguardItem.endTime);
+      params.set('bodyguardId', bodyguard.id)
+      params.set('bodyguardDuration', bodyguardItem.duration)
+      params.set('bodyguardStartDate', bodyguardItem.startDate.toISOString())
+      if (bodyguardItem.endDate) params.set('bodyguardEndDate', bodyguardItem.endDate.toISOString())
+      params.set('bodyguardStartTime', bodyguardItem.startTime)
+      params.set('bodyguardEndTime', bodyguardItem.endTime)
     }
 
-    navigate(`/booking/summary?${params.toString()}`);
-  };
+    navigate(`/booking/summary?${params.toString()}`)
+  }
 
   if (cart.length === 0) {
     return (
@@ -111,12 +116,11 @@ export function ServiceCart() {
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
         <div className="flex items-center h-14 px-4">
           <button
@@ -134,21 +138,19 @@ export function ServiceCart() {
       </div>
 
       <div className="px-4 py-6 space-y-4 max-w-md mx-auto">
-        {/* Cart header */}
         <div className="bg-gradient-to-r from-[#d4af37] to-[#b8941f] rounded-xl p-5 text-white">
           <h2 className="text-xl mb-1">Your Services</h2>
           <p className="text-sm text-white/80">
             Customize booking period for each service independently
           </p>
-          {hasVehicle && (driverItem || bodyguardItem) && (
+          {hasVehicle && (driverItem || bodyguardItem) ? (
             <div className="mt-3 p-2 bg-white/20 rounded-lg">
               <p className="text-xs font-medium">💰 Bundle discount active!</p>
             </div>
-          )}
+          ) : null}
         </div>
 
-        {/* Compatibility Warning */}
-        {hasCompatibilityIssue && (
+        {hasCompatibilityIssue ? (
           <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4">
             <div className="flex gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -178,10 +180,9 @@ export function ServiceCart() {
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
-        {/* Vehicle cart item */}
-        {vehicleItem && (
+        {vehicleItem ? (
           <ServiceCartItem
             type="vehicle"
             serviceName={vehicle?.name || vehicleItem.displayName || 'Vehicle'}
@@ -201,16 +202,15 @@ export function ServiceCart() {
             onEndTimeChange={(endTime) => updateCartItem({ ...vehicleItem, endTime })}
             onRemove={() => removeFromCart('vehicle')}
           />
-        )}
+        ) : null}
 
-        {/* Driver cart item */}
-        {driverItem && (
+        {driverItem ? (
           <div className="relative">
-            {hasVehicle && (
+            {hasVehicle ? (
               <div className="absolute -top-2 -right-2 z-10 bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-full">
                 10% OFF
               </div>
-            )}
+            ) : null}
             <ServiceCartItem
               type="driver"
               serviceName={driver?.name || driverItem.displayName || 'Driver'}
@@ -231,16 +231,15 @@ export function ServiceCart() {
               onRemove={() => removeFromCart('driver')}
             />
           </div>
-        )}
+        ) : null}
 
-        {/* Bodyguard cart item */}
-        {bodyguardItem && (
+        {bodyguardItem ? (
           <div className="relative">
-            {hasVehicle && (
+            {hasVehicle ? (
               <div className="absolute -top-2 -right-2 z-10 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full">
                 15% OFF
               </div>
-            )}
+            ) : null}
             <ServiceCartItem
               type="bodyguard"
               serviceName={bodyguard?.name || bodyguardItem.displayName || 'Security'}
@@ -261,53 +260,49 @@ export function ServiceCart() {
               onRemove={() => removeFromCart('bodyguard')}
             />
           </div>
-        )}
+        ) : null}
 
-        {/* Continue browsing */}
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <p className="text-sm text-gray-600 mb-3">Want to add more services?</p>
           <div className="grid grid-cols-3 gap-2">
-            {!vehicleItem && (
+            {!vehicleItem ? (
               <button
                 onClick={() => navigate('/vehicles')}
                 className="py-2 px-3 bg-blue-50 text-blue-600 rounded-lg text-xs hover:bg-blue-100 transition-colors"
               >
                 + Vehicle
               </button>
-            )}
-            {!driverItem && (
+            ) : null}
+            {!driverItem ? (
               <button
                 onClick={() => navigate('/drivers')}
                 className="py-2 px-3 bg-green-50 text-green-600 rounded-lg text-xs hover:bg-green-100 transition-colors"
               >
                 + Driver
-                {hasVehicle && <div className="text-[10px]">10% off</div>}
+                {hasVehicle ? <div className="text-[10px]">10% off</div> : null}
               </button>
-            )}
-            {!bodyguardItem && (
+            ) : null}
+            {!bodyguardItem ? (
               <button
                 onClick={() => navigate('/bodyguards')}
                 className="py-2 px-3 bg-purple-50 text-purple-600 rounded-lg text-xs hover:bg-purple-100 transition-colors"
               >
                 + Security
-                {hasVehicle && <div className="text-[10px]">15% off</div>}
+                {hasVehicle ? <div className="text-[10px]">15% off</div> : null}
               </button>
-            )}
+            ) : null}
           </div>
         </div>
 
-        {/* Total price card */}
         <div className="bg-white rounded-xl p-4 shadow-sm border-2 border-gray-200">
           <div className="space-y-3">
-            {/* Subtotal */}
-            {totalDiscount > 0 && (
+            {totalDiscount > 0 ? (
               <div className="space-y-2 pb-3 border-b border-gray-200">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Subtotal</span>
                   <span className="text-gray-900">${subtotal.toFixed(2)}</span>
                 </div>
 
-                {/* Bundle discount badge */}
                 <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg">
                   <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center">
                     <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -325,18 +320,17 @@ export function ServiceCart() {
                   <span className="text-sm font-medium text-green-600">-${totalDiscount.toFixed(2)}</span>
                 </div>
               </div>
-            )}
+            ) : null}
 
-            {/* Total */}
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-sm text-gray-600">Total Amount</p>
                 <p className="text-2xl text-gray-900 font-bold">${total.toFixed(2)}</p>
-                {totalDiscount > 0 && (
+                {totalDiscount > 0 ? (
                   <p className="text-xs text-green-600 font-medium mt-1">
                     You save ${totalDiscount.toFixed(2)}!
                   </p>
-                )}
+                ) : null}
               </div>
               <Button onClick={handleContinue} size="lg">
                 Continue
@@ -346,5 +340,5 @@ export function ServiceCart() {
         </div>
       </div>
     </div>
-  );
+  )
 }

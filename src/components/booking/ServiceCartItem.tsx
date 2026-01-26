@@ -1,25 +1,24 @@
-import { X } from 'lucide-react';
-import React from 'react';
+import X from 'lucide-react/dist/esm/icons/x'
 
 interface ServiceCartItemProps {
-  type: 'vehicle' | 'driver' | 'bodyguard';
-  serviceName: string;
-  serviceImage: string;
-  serviceDetails: string;
-  basePricePerDay?: number;
-  basePricePerHour?: number;
-  duration: 'hourly' | 'daily' | 'weekly' | 'monthly' | 'halfday' | 'fullday';
-  durationDisplay?: string;
-  startDate: Date;
-  endDate: Date | null;
-  startTime: string;
-  endTime: string;
-  onDurationChange: (duration: any) => void;
-  onStartDateChange: (date: Date) => void;
-  onEndDateChange: (date: Date | null) => void;
-  onStartTimeChange: (time: string) => void;
-  onEndTimeChange: (time: string) => void;
-  onRemove: () => void;
+  type: 'vehicle' | 'driver' | 'bodyguard'
+  serviceName: string
+  serviceImage: string
+  serviceDetails: string
+  basePricePerDay?: number
+  basePricePerHour?: number
+  duration: 'hourly' | 'daily' | 'weekly' | 'monthly' | 'halfday' | 'fullday'
+  durationDisplay?: string
+  startDate: Date
+  endDate: Date | null
+  startTime: string
+  endTime: string
+  onDurationChange: (duration: any) => void
+  onStartDateChange: (date: Date) => void
+  onEndDateChange: (date: Date | null) => void
+  onStartTimeChange: (time: string) => void
+  onEndTimeChange: (time: string) => void
+  onRemove: () => void
 }
 
 const colorMap = {
@@ -41,7 +40,7 @@ const colorMap = {
     text: 'text-purple-700',
     badge: 'bg-purple-600'
   }
-};
+}
 
 export function ServiceCartItem({
   type,
@@ -52,26 +51,24 @@ export function ServiceCartItem({
   durationDisplay,
   onRemove
 }: ServiceCartItemProps) {
-  const colors = colorMap[type];
+  const colors = colorMap[type]
 
-  const getTypeLabel = () => {
-    if (type === 'vehicle') return 'Vehicle';
-    if (type === 'driver') return 'Driver';
-    return 'Security';
-  };
+  function getTypeLabel() {
+    if (type === 'vehicle') return 'Vehicle'
+    if (type === 'driver') return 'Driver'
+    return 'Security'
+  }
 
-  const getDurationText = () => {
-    if (durationDisplay) {
-      return durationDisplay;
-    }
-    if (duration === 'hourly') return '8 hours';
-    if (duration === 'daily') return '3 days';
-    if (duration === 'weekly') return '7 days';
-    if (duration === 'monthly') return '30 days';
-    if (duration === 'halfday') return '12 hours';
-    if (duration === 'fullday') return '24 hours';
-    return '';
-  };
+  function getDurationText() {
+    if (durationDisplay) return durationDisplay
+    if (duration === 'hourly') return '8 hours'
+    if (duration === 'daily') return '3 days'
+    if (duration === 'weekly') return '7 days'
+    if (duration === 'monthly') return '30 days'
+    if (duration === 'halfday') return '12 hours'
+    if (duration === 'fullday') return '24 hours'
+    return ''
+  }
 
   return (
     <div className={`${colors.bg} rounded-xl p-4 border ${colors.border}`}>
@@ -104,5 +101,5 @@ export function ServiceCartItem({
         </div>
       </div>
     </div>
-  );
+  )
 }

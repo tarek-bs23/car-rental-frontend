@@ -1,41 +1,41 @@
-import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { useApp, User } from '../../contexts/AppContext';
-import { toast } from 'sonner';
-import { apiJson } from '../../lib/api';
-import { endpoints } from '../../lib/endpoints';
+import { useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Button } from '../ui/button'
+import { Input } from '../ui/input'
+import { Label } from '../ui/label'
+import { useApp, type User } from '../../contexts/AppContext'
+import { toast } from 'sonner'
+import { apiJson } from '../../lib/api'
+import { endpoints } from '../../lib/endpoints'
 
 interface LoginResponse {
-  statusCode: number;
-  message: string;
+  statusCode: number
+  message: string
   data: {
     user: {
-      _id: string;
-      email: string;
-      firstName?: string;
-      lastName?: string;
-      phoneNumber?: string;
-      city?: string;
-    };
-    accessToken: string;
-  };
+      _id: string
+      email: string
+      firstName?: string
+      lastName?: string
+      phoneNumber?: string
+      city?: string
+    }
+    accessToken: string
+  }
 }
 
 export function Login() {
-  const navigate = useNavigate();
-  const { login } = useApp();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate()
+  const { login } = useApp()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleLogin = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isLoading) return;
+    e.preventDefault()
+    if (isLoading) return
 
-    setIsLoading(true);
+    setIsLoading(true)
 
     try {
       const response = await apiJson<LoginResponse>({
@@ -43,9 +43,9 @@ export function Login() {
         method: 'POST',
         body: { email: email.trim(), password },
         skipAuth: true,
-      });
+      })
 
-      const apiUser = response.data.user;
+      const apiUser = response.data.user
       const mappedUser: User = {
         id: apiUser._id,
         email: apiUser.email,
@@ -54,18 +54,18 @@ export function Login() {
           : apiUser.email.split('@')[0],
         phone: apiUser.phoneNumber || '',
         city: apiUser.city || '',
-      };
+      }
 
-      login(response.data.accessToken, mappedUser);
-      toast.success('Successfully logged in!');
-      navigate('/');
+      login(response.data.accessToken, mappedUser)
+      toast.success('Successfully logged in!')
+      navigate('/')
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Login failed';
-      toast.error(message);
+      const message = error instanceof Error ? error.message : 'Login failed'
+      toast.error(message)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [email, password, isLoading, login, navigate]);
+  }, [email, password, isLoading, login, navigate])
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -126,5 +126,5 @@ export function Login() {
         </div>
       </div>
     </div>
-  );
+  )
 }

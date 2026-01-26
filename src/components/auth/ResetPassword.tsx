@@ -1,44 +1,44 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { toast } from 'sonner';
-import { apiJson } from '../../lib/api';
-import { endpoints } from '../../lib/endpoints';
-import { ChevronLeft } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { Button } from '../ui/button'
+import { Input } from '../ui/input'
+import { Label } from '../ui/label'
+import { toast } from 'sonner'
+import { apiJson } from '../../lib/api'
+import { endpoints } from '../../lib/endpoints'
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left'
 
 export function ResetPassword() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const resetToken = (location.state as { resetToken?: string })?.resetToken || '';
+  const navigate = useNavigate()
+  const location = useLocation()
+  const resetToken = (location.state as { resetToken?: string })?.resetToken || ''
 
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (!resetToken) {
-      toast.error('Invalid reset token. Please start again.');
-      navigate('/forgot-password');
+      toast.error('Invalid reset token. Please start again.')
+      navigate('/forgot-password')
     }
-  }, [resetToken, navigate]);
+  }, [resetToken, navigate])
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isLoading || !newPassword || !confirmPassword) return;
+    e.preventDefault()
+    if (isLoading || !newPassword || !confirmPassword) return
 
     if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
+      toast.error('Passwords do not match')
+      return
     }
 
     if (newPassword.length < 8) {
-      toast.error('Password must be at least 8 characters');
-      return;
+      toast.error('Password must be at least 8 characters')
+      return
     }
 
-    setIsLoading(true);
+    setIsLoading(true)
 
     try {
       await apiJson({
@@ -46,19 +46,19 @@ export function ResetPassword() {
         method: 'POST',
         body: { resetToken, newPassword },
         skipAuth: true,
-      });
+      })
 
-      toast.success('Password reset successfully. Please log in.');
-      navigate('/login');
+      toast.success('Password reset successfully. Please log in.')
+      navigate('/login')
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to reset password';
-      toast.error(message);
+      const message = error instanceof Error ? error.message : 'Failed to reset password'
+      toast.error(message)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [newPassword, confirmPassword, resetToken, isLoading, navigate]);
+  }, [newPassword, confirmPassword, resetToken, isLoading, navigate])
 
-  if (!resetToken) return null;
+  if (!resetToken) return null
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -116,5 +116,5 @@ export function ResetPassword() {
         </div>
       </div>
     </div>
-  );
+  )
 }

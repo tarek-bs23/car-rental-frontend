@@ -1,146 +1,148 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useApp } from '../../contexts/AppContext';
-import { TopBar } from '../layout/TopBar';
-import { BottomNav } from '../layout/BottomNav';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { Star, ChevronRight, Users, Zap, Calendar, Clock, AlertCircle, CheckCircle2, X, Loader2 } from 'lucide-react';
-import { motion } from 'motion/react';
-import { format, addDays } from 'date-fns';
-import { Button } from '../ui/button';
-import { Calendar as CalendarComponent } from '../ui/calendar';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useApp } from '../../contexts/AppContext'
+import { TopBar } from '../layout/TopBar'
+import { BottomNav } from '../layout/BottomNav'
+import { ImageWithFallback } from '../figma/ImageWithFallback'
+import Star from 'lucide-react/dist/esm/icons/star'
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right'
+import Users from 'lucide-react/dist/esm/icons/users'
+import Zap from 'lucide-react/dist/esm/icons/zap'
+import Calendar from 'lucide-react/dist/esm/icons/calendar'
+import Clock from 'lucide-react/dist/esm/icons/clock'
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
+import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2'
+import X from 'lucide-react/dist/esm/icons/x'
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
+import { motion } from 'motion/react'
+import { format, addDays } from 'date-fns'
+import { Button } from '../ui/button'
+import { Calendar as CalendarComponent } from '../ui/calendar'
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from '../ui/sheet';
-import React from 'react';
-import { searchVehicles, PricingType } from '../../lib/vehicleSearch';
-import type { Vehicle } from '../../contexts/AppContext';
-import { toast } from 'sonner';
-import { VehicleCardSkeleton } from './VehicleCardSkeleton';
+} from '../ui/sheet'
+import { searchVehicles, PricingType } from '../../lib/vehicleSearch'
+import type { Vehicle } from '../../contexts/AppContext'
+import { toast } from 'sonner'
+import { VehicleCardSkeleton } from './VehicleCardSkeleton'
 
 export function VehicleSearch() {
-  const navigate = useNavigate();
-  const { selectedCity, upsertVehicles } = useApp();
-  const [searchParams] = useSearchParams();
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('daily');
+  const navigate = useNavigate()
+  const { selectedCity, upsertVehicles } = useApp()
+  const [searchParams] = useSearchParams()
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [selectedDuration, setSelectedDuration] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('daily')
 
-  // Date/Time state
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [startTime, setStartTime] = useState<string>('10:00');
-  const [endTime, setEndTime] = useState<string>('18:00');
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined)
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined)
+  const [startTime, setStartTime] = useState<string>('10:00')
+  const [endTime, setEndTime] = useState<string>('18:00')
+  const [showDatePicker, setShowDatePicker] = useState(false)
 
-  // API state
-  const [allResults, setAllResults] = useState<Vehicle[]>([]);
-  const [results, setResults] = useState<Vehicle[]>([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [total, setTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [datesApplied, setDatesApplied] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const lastQueryRef = useRef<string>('');
+  const [allResults, setAllResults] = useState<Vehicle[]>([])
+  const [results, setResults] = useState<Vehicle[]>([])
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [total, setTotal] = useState(0)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [datesApplied, setDatesApplied] = useState(false)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  const lastQueryRef = useRef<string>('')
 
   const [categories, setCategories] = useState<{ id: string; label: string }[]>([
     { id: 'all', label: 'All' },
-  ]);
+  ])
 
   const durations = [
     { id: 'hourly', label: 'Hourly', icon: Clock, description: 'Short rentals' },
     { id: 'daily', label: 'Daily', icon: Calendar, description: '1-6 days' },
     { id: 'weekly', label: 'Weekly', icon: Calendar, description: '7 days' },
     { id: 'monthly', label: 'Monthly', icon: Calendar, description: '30 days' },
-  ];
+  ]
 
-  // Get booking period based on duration type
   const getBookingPeriod = useCallback(() => {
-    if (!startDate) return null;
+    if (!startDate) return null
 
     switch (selectedDuration) {
       case 'hourly':
         return {
           start: startDate,
           end: startDate
-        };
+        }
       case 'daily':
         return {
           start: startDate,
           end: endDate || startDate
-        };
+        }
       case 'weekly':
         return {
           start: startDate,
           end: addDays(startDate, 7)
-        };
+        }
       case 'monthly':
         return {
           start: startDate,
           end: addDays(startDate, 30)
-        };
+        }
     }
-  }, [startDate, endDate, selectedDuration]);
+  }, [startDate, endDate, selectedDuration])
 
-  // Build ISO dates for API
   const buildSearchDates = useCallback(() => {
-    const period = getBookingPeriod();
-    if (!period) return null;
+    const period = getBookingPeriod()
+    if (!period) return null
 
-    let startISO: string;
-    let endISO: string;
+    let startISO: string
+    let endISO: string
 
     if (selectedDuration === 'hourly') {
-      const [startHour, startMin] = startTime.split(':').map(Number);
-      const [endHour, endMin] = endTime.split(':').map(Number);
-      const start = new Date(period.start);
-      start.setHours(startHour, startMin, 0, 0);
-      const end = new Date(period.start);
-      end.setHours(endHour, endMin, 0, 0);
-      startISO = start.toISOString();
-      endISO = end.toISOString();
+      const [startHour, startMin] = startTime.split(':').map(Number)
+      const [endHour, endMin] = endTime.split(':').map(Number)
+      const start = new Date(period.start)
+      start.setHours(startHour, startMin, 0, 0)
+      const end = new Date(period.start)
+      end.setHours(endHour, endMin, 0, 0)
+      startISO = start.toISOString()
+      endISO = end.toISOString()
     } else {
-      startISO = period.start.toISOString();
-      endISO = period.end.toISOString();
+      startISO = period.start.toISOString()
+      endISO = period.end.toISOString()
     }
 
-    return { startISO, endISO };
-  }, [getBookingPeriod, selectedDuration, startTime, endTime]);
+    return { startISO, endISO }
+  }, [getBookingPeriod, selectedDuration, startTime, endTime])
 
-  // Map duration to pricing type
   const getPricingType = useCallback(() => {
     switch (selectedDuration) {
-      case 'hourly': return PricingType.HOURLY;
-      case 'daily': return PricingType.DAILY;
-      case 'weekly': return PricingType.WEEKLY;
-      case 'monthly': return PricingType.MONTHLY;
+      case 'hourly': return PricingType.HOURLY
+      case 'daily': return PricingType.DAILY
+      case 'weekly': return PricingType.WEEKLY
+      case 'monthly': return PricingType.MONTHLY
     }
-  }, [selectedDuration]);
+  }, [selectedDuration])
 
-  const getCategoryLabel = (rawType: string) => {
-    if (!rawType) return 'Unknown';
-    return rawType.charAt(0) + rawType.slice(1).toLowerCase();
-  };
+  function getCategoryLabel(rawType: string) {
+    if (!rawType) return 'Unknown'
+    return rawType.charAt(0) + rawType.slice(1).toLowerCase()
+  }
 
-  // Fetch vehicles from API (unfiltered, city/date/duration only)
   const fetchVehicles = useCallback(async (pageNum: number, reset: boolean = false) => {
-    const dates = buildSearchDates();
-    if (!selectedCity || !dates) return;
+    const dates = buildSearchDates()
+    if (!selectedCity || !dates) return
 
-    const queryKey = `${selectedCity}-${dates.startISO}-${dates.endISO}-${selectedDuration}-${pageNum}`;
+    const queryKey = `${selectedCity}-${dates.startISO}-${dates.endISO}-${selectedDuration}-${pageNum}`
 
-    if (!reset && queryKey === lastQueryRef.current) return;
+    if (!reset && queryKey === lastQueryRef.current) return
 
     if (reset) {
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true)
+      setError(null)
     } else {
-      setIsLoadingMore(true);
+      setIsLoadingMore(true)
     }
 
     try {
@@ -151,157 +153,149 @@ export function VehicleSearch() {
         pricingType: getPricingType(),
         page: pageNum,
         limit: 10,
-      });
+      })
 
-      lastQueryRef.current = queryKey;
+      lastQueryRef.current = queryKey
 
       if (reset) {
-        setAllResults(result.vehicles);
+        setAllResults(result.vehicles)
       } else {
-        setAllResults(prev => [...prev, ...result.vehicles]);
+        setAllResults(curr => [...curr, ...result.vehicles])
       }
 
-      upsertVehicles(result.vehicles);
-      setHasMore(result.hasMore);
-      setTotal(prevTotal => (reset ? result.vehicles.length : prevTotal + result.vehicles.length));
-      setPage(pageNum);
+      upsertVehicles(result.vehicles)
+      setHasMore(result.hasMore)
+      setTotal(currTotal => (reset ? result.vehicles.length : currTotal + result.vehicles.length))
+      setPage(pageNum)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load vehicles';
-      setError(errorMessage);
-      toast.error(errorMessage);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load vehicles'
+      setError(errorMessage)
+      toast.error(errorMessage)
     } finally {
-      setIsLoading(false);
-      setIsLoadingMore(false);
+      setIsLoading(false)
+      setIsLoadingMore(false)
     }
-  }, [selectedCity, buildSearchDates, selectedDuration, selectedCategory, getPricingType, upsertVehicles]);
+  }, [selectedCity, buildSearchDates, selectedDuration, getPricingType, upsertVehicles])
 
-  // Handler to apply dates and fetch vehicles
   const handleApplyDates = useCallback(() => {
-    if (!startDate || (selectedDuration === 'daily' && !endDate)) return;
+    if (!startDate || (selectedDuration === 'daily' && !endDate)) return
 
-    setShowDatePicker(false);
-    setDatesApplied(true);
-    setAllResults([]);
-    setResults([]);
-    setPage(1);
-    setHasMore(false);
-    setError(null);
-    lastQueryRef.current = '';
+    setShowDatePicker(false)
+    setDatesApplied(true)
+    setAllResults([])
+    setResults([])
+    setPage(1)
+    setHasMore(false)
+    setError(null)
+    lastQueryRef.current = ''
 
-    // Small delay to ensure state updates before API call
     setTimeout(() => {
-      fetchVehicles(1, true);
-    }, 100);
-  }, [startDate, endDate, selectedDuration, fetchVehicles]);
+      fetchVehicles(1, true)
+    }, 100)
+  }, [startDate, endDate, selectedDuration, fetchVehicles])
 
-  // Keep filtered results in sync with selected category and loaded data
   useEffect(() => {
     if (!datesApplied) {
-      setResults([]);
-      setTotal(0);
-      return;
+      setResults([])
+      setTotal(0)
+      return
     }
 
     const filtered =
       selectedCategory === 'all'
         ? allResults
-        : allResults.filter((vehicle) => vehicle.category === selectedCategory);
+        : allResults.filter((vehicle) => vehicle.category === selectedCategory)
 
-    setResults(filtered);
-    setTotal(filtered.length);
-  }, [allResults, selectedCategory, datesApplied]);
+    setResults(filtered)
+    setTotal(filtered.length)
+  }, [allResults, selectedCategory, datesApplied])
 
-  // Derive categories from loaded vehicles and refresh after lazy loading
   useEffect(() => {
     if (!allResults.length) {
-      setCategories([{ id: 'all', label: 'All' }]);
-      return;
+      setCategories([{ id: 'all', label: 'All' }])
+      return
     }
 
-    const typeSet = new Set<string>();
+    const typeSet = new Set<string>()
     allResults.forEach((vehicle) => {
       if (vehicle.category) {
-        typeSet.add(vehicle.category);
+        typeSet.add(vehicle.category)
       }
-    });
+    })
 
     const dynamicCategories = Array.from(typeSet).map((type) => ({
       id: type,
       label: getCategoryLabel(type),
-    }));
+    }))
 
-    setCategories([{ id: 'all', label: 'All' }, ...dynamicCategories]);
-  }, [allResults]);
+    setCategories([{ id: 'all', label: 'All' }, ...dynamicCategories])
+  }, [allResults])
 
-  // Intersection observer for infinite scroll
   useEffect(() => {
-    if (!sentinelRef.current || !hasMore || isLoadingMore) return;
+    if (!sentinelRef.current || !hasMore || isLoadingMore) return
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
-          fetchVehicles(page + 1, false);
+          fetchVehicles(page + 1, false)
         }
       },
       { threshold: 0.1 }
-    );
+    )
 
-    observer.observe(sentinelRef.current);
-    return () => observer.disconnect();
-  }, [hasMore, isLoadingMore, page, fetchVehicles]);
+    observer.observe(sentinelRef.current)
+    return () => observer.disconnect()
+  }, [hasMore, isLoadingMore, page, fetchVehicles])
 
-  // Calculate price based on selected duration
-  const getPrice = (vehicle: Vehicle) => {
+  function getPrice(vehicle: Vehicle) {
     switch (selectedDuration) {
       case 'hourly':
-        return { amount: vehicle.pricePerHour, unit: '/hr' };
+        return { amount: vehicle.pricePerHour, unit: '/hr' }
       case 'daily':
-        return { amount: vehicle.pricePerDay, unit: '/day' };
+        return { amount: vehicle.pricePerDay, unit: '/day' }
       case 'weekly':
-        return { amount: vehicle.pricePerWeek, unit: '/week' };
+        return { amount: vehicle.pricePerWeek, unit: '/week' }
       case 'monthly':
-        return { amount: vehicle.pricePerMonth, unit: '/month' };
+        return { amount: vehicle.pricePerMonth, unit: '/month' }
       default:
-        return { amount: vehicle.pricePerDay, unit: '/day' };
+        return { amount: vehicle.pricePerDay, unit: '/day' }
     }
-  };
+  }
 
-  // Handle duration change
-  const handleDurationChange = (newDuration: 'hourly' | 'daily' | 'weekly' | 'monthly') => {
-    setSelectedDuration(newDuration);
-    setStartDate(undefined);
-    setEndDate(undefined);
-    setDatesApplied(false);
-    setResults([]);
-    setPage(1);
-    setHasMore(false);
-    setError(null);
-    lastQueryRef.current = '';
-    setShowDatePicker(false);
-  };
+  function handleDurationChange(newDuration: 'hourly' | 'daily' | 'weekly' | 'monthly') {
+    setSelectedDuration(newDuration)
+    setStartDate(undefined)
+    setEndDate(undefined)
+    setDatesApplied(false)
+    setResults([])
+    setPage(1)
+    setHasMore(false)
+    setError(null)
+    lastQueryRef.current = ''
+    setShowDatePicker(false)
+  }
 
-  // Format booking period for display
-  const formatBookingPeriod = () => {
-    if (!startDate) return 'Select dates';
+  function formatBookingPeriod() {
+    if (!startDate) return 'Select dates'
 
-    const period = getBookingPeriod();
-    if (!period) return 'Select dates';
+    const period = getBookingPeriod()
+    if (!period) return 'Select dates'
 
     if (selectedDuration === 'hourly') {
-      return `${format(startDate, 'MMM d')} • ${startTime} - ${endTime}`;
+      return `${format(startDate, 'MMM d')} • ${startTime} - ${endTime}`
     } else if (selectedDuration === 'daily') {
       if (endDate) {
-        return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`;
+        return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`
       }
-      return format(startDate, 'MMM d, yyyy');
+      return format(startDate, 'MMM d, yyyy')
     } else if (selectedDuration === 'weekly') {
-      return `${format(period.start, 'MMM d')} - ${format(period.end, 'MMM d')}`;
+      return `${format(period.start, 'MMM d')} - ${format(period.end, 'MMM d')}`
     } else {
-      return `${format(period.start, 'MMM d')} - ${format(period.end, 'MMM d')}`;
+      return `${format(period.start, 'MMM d')} - ${format(period.end, 'MMM d')}`
     }
-  };
+  }
 
-  const hasSelectedDates = startDate !== undefined;
+  const hasSelectedDates = useMemo(() => startDate !== undefined, [startDate])
 
   return (
     <div className="min-h-screen bg-white pb-20">
@@ -328,8 +322,8 @@ export function VehicleSearch() {
               <p className="text-sm font-semibold text-neutral-700 mb-3">Rental Duration</p>
               <div className="grid grid-cols-4 gap-2 mb-4">
                 {durations.map((duration) => {
-                  const Icon = duration.icon;
-                  const isSelected = selectedDuration === duration.id;
+                  const Icon = duration.icon
+                  const isSelected = selectedDuration === duration.id
                   return (
                     <button
                       key={duration.id}
@@ -350,7 +344,7 @@ export function VehicleSearch() {
                         {duration.description}
                       </p>
                     </button>
-                  );
+                  )
                 })}
               </div>
 
@@ -387,21 +381,21 @@ export function VehicleSearch() {
               </button>
 
               {/* Clear Selection */}
-              {hasSelectedDates && (
+              {hasSelectedDates ? (
                 <button
                   onClick={() => {
-                    setStartDate(undefined);
-                    setEndDate(undefined);
-                    setDatesApplied(false);
-                    setResults([]);
-                    setError(null);
+                    setStartDate(undefined)
+                    setEndDate(undefined)
+                    setDatesApplied(false)
+                    setResults([])
+                    setError(null)
                   }}
                   className="mt-2 text-sm text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
                 >
                   <X className="w-4 h-4" />
                   Clear dates
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
@@ -496,7 +490,7 @@ export function VehicleSearch() {
                         transition={{ duration: 0.3, delay: Math.min(index, 5) * 0.05 }}
                         onClick={() => {
                           if (isAvailable) {
-                            navigate(`/vehicle/${vehicle.id}?duration=${selectedDuration}&startDate=${startDate?.toISOString()}&endDate=${endDate?.toISOString() || startDate?.toISOString()}&startTime=${startTime}&endTime=${endTime}`);
+                            navigate(`/vehicle/${vehicle.id}?duration=${selectedDuration}&startDate=${startDate?.toISOString()}&endDate=${endDate?.toISOString() || startDate?.toISOString()}&startTime=${startTime}&endTime=${endTime}`)
                           }
                         }}
                         className="w-full group"
@@ -605,42 +599,39 @@ export function VehicleSearch() {
                           </div>
                         </div>
                       </motion.button>
-                    );
+                    )
                   })}
                 </div>
 
-                {/* Infinite scroll sentinel */}
                 <div ref={sentinelRef} className="h-10 flex items-center justify-center mt-4">
-                  {isLoadingMore && (
+                  {isLoadingMore ? (
                     <Loader2 className="w-6 h-6 text-[#d4af37] animate-spin" />
-                  )}
+                  ) : null}
                 </div>
 
-                {!hasMore && results.length > 0 && (
+                {!hasMore && results.length > 0 ? (
                   <p className="text-center text-sm text-neutral-500 mt-4">
                     You've seen all {total} vehicles
                   </p>
-                )}
+                ) : null}
               </>
             )}
           </div>
         </div>
       </div>
 
-      {/* Date Picker Sheet */}
       <Sheet open={showDatePicker} onOpenChange={setShowDatePicker}>
         <SheetContent side="bottom" className="h-auto max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
           <SheetHeader className="mb-6">
             <SheetTitle>
-              {selectedDuration === 'hourly' && 'Select Date & Time'}
-              {selectedDuration === 'daily' && 'Select Rental Dates'}
-              {selectedDuration === 'weekly' && 'Select Start Date'}
-              {selectedDuration === 'monthly' && 'Select Start Date'}
+              {selectedDuration === 'hourly' ? 'Select Date & Time' : null}
+              {selectedDuration === 'daily' ? 'Select Rental Dates' : null}
+              {selectedDuration === 'weekly' ? 'Select Start Date' : null}
+              {selectedDuration === 'monthly' ? 'Select Start Date' : null}
             </SheetTitle>
           </SheetHeader>
 
           <div className="space-y-6">
-            {/* Calendar for start date (and end date for daily) */}
             {selectedDuration === 'daily' ? (
               <div>
                 <p className="text-sm font-medium text-neutral-700 mb-3">Pickup & Return Dates</p>
@@ -648,8 +639,8 @@ export function VehicleSearch() {
                   mode="range"
                   selected={{ from: startDate, to: endDate }}
                   onSelect={(range: any) => {
-                    setStartDate(range?.from);
-                    setEndDate(range?.to);
+                    setStartDate(range?.from)
+                    setEndDate(range?.to)
                   }}
                   numberOfMonths={1}
                   disabled={(date) => date < new Date()}
@@ -659,9 +650,9 @@ export function VehicleSearch() {
             ) : (
               <div>
                 <p className="text-sm font-medium text-neutral-700 mb-3">
-                  {selectedDuration === 'hourly' && 'Select Date'}
-                  {selectedDuration === 'weekly' && 'Start Date (rental runs for 7 days)'}
-                  {selectedDuration === 'monthly' && 'Start Date (rental runs for 30 days)'}
+                  {selectedDuration === 'hourly' ? 'Select Date' : null}
+                  {selectedDuration === 'weekly' ? 'Start Date (rental runs for 7 days)' : null}
+                  {selectedDuration === 'monthly' ? 'Start Date (rental runs for 30 days)' : null}
                 </p>
                 <CalendarComponent
                   mode="single"
@@ -673,8 +664,7 @@ export function VehicleSearch() {
               </div>
             )}
 
-            {/* Time pickers for hourly */}
-            {selectedDuration === 'hourly' && (
+            {selectedDuration === 'hourly' ? (
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-neutral-700 mb-2 block">Start Time</label>
@@ -695,21 +685,20 @@ export function VehicleSearch() {
                   />
                 </div>
               </div>
-            )}
+            ) : null}
 
-            {/* Summary */}
-            {startDate && (
+            {startDate ? (
               <div className="bg-gradient-to-br from-[#d4af37]/5 to-[#b8941f]/5 border-2 border-[#d4af37]/20 rounded-xl p-4">
                 <p className="text-sm font-semibold text-neutral-900 mb-2">Rental Period Summary</p>
                 <p className="text-neutral-700">
-                  {selectedDuration === 'hourly' && `${format(startDate, 'MMM d, yyyy')} • ${startTime} - ${endTime}`}
-                  {selectedDuration === 'daily' && endDate && `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`}
-                  {selectedDuration === 'daily' && !endDate && format(startDate, 'MMM d, yyyy')}
-                  {selectedDuration === 'weekly' && `${format(startDate, 'MMM d')} - ${format(addDays(startDate, 7), 'MMM d, yyyy')} (7 days)`}
-                  {selectedDuration === 'monthly' && `${format(startDate, 'MMM d')} - ${format(addDays(startDate, 30), 'MMM d, yyyy')} (30 days)`}
+                  {selectedDuration === 'hourly' ? `${format(startDate, 'MMM d, yyyy')} • ${startTime} - ${endTime}` : null}
+                  {selectedDuration === 'daily' && endDate ? `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}` : null}
+                  {selectedDuration === 'daily' && !endDate ? format(startDate, 'MMM d, yyyy') : null}
+                  {selectedDuration === 'weekly' ? `${format(startDate, 'MMM d')} - ${format(addDays(startDate, 7), 'MMM d, yyyy')} (7 days)` : null}
+                  {selectedDuration === 'monthly' ? `${format(startDate, 'MMM d')} - ${format(addDays(startDate, 30), 'MMM d, yyyy')} (30 days)` : null}
                 </p>
               </div>
-            )}
+            ) : null}
 
             <Button
               onClick={handleApplyDates}
@@ -724,5 +713,5 @@ export function VehicleSearch() {
 
       <BottomNav />
     </div>
-  );
+  )
 }
