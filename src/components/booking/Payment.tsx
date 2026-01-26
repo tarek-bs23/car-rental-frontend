@@ -35,18 +35,8 @@ export function Payment() {
           currency: string;
           paymentStatus: string;
           paymentAttemptId: string;
-          timestamp: string;
-        };
-      };
-
-      type CheckoutConfirmResponse = {
-        statusCode: number;
-        message: string;
-        data: {
-          intentId: string;
-          status: string;
-          paymentStatus: string;
-          externalPaymentId?: string;
+          checkoutUrl: string;
+          paymentId: string;
           timestamp: string;
         };
       };
@@ -59,33 +49,13 @@ export function Payment() {
         },
       });
 
-      const intentId = response?.data?.intentId;
+      const checkoutUrl = response?.data?.checkoutUrl;
 
-      if (!intentId) {
-        throw new Error('Missing intentId from checkout response');
+      if (!checkoutUrl) {
+        throw new Error('Missing checkoutUrl from checkout response');
       }
 
-      // Simulate payment processing
-      setTimeout(async () => {
-        try {
-          await apiJson<CheckoutConfirmResponse>({
-            path: endpoints.checkoutConfirm,
-            method: 'POST',
-            body: {
-              intentId,
-              simulateSuccess: true,
-              externalPaymentId: 'pi_test_123456',
-            },
-          });
-
-          navigate(`/booking/confirmation?intentId=${intentId}`);
-        } catch (error) {
-          console.error('Checkout confirm failed:', error);
-          alert(error instanceof Error ? error.message : 'Payment confirmation failed. Please try again.');
-        } finally {
-          setIsProcessing(false);
-        }
-      }, 2000);
+      window.location.href = checkoutUrl;
     } catch (error) {
       console.error('Checkout failed:', error);
       alert(error instanceof Error ? error.message : 'Payment failed. Please try again.');
